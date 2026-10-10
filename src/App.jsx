@@ -7,46 +7,59 @@ const COURSES=[
  {name:"McCabe Golf Course",short:"MCCABE",pars:[4,4,3,5,4,3,4,4,3,4,4,4,3,5,4,3,4,4],si:[8,12,16,4,10,14,2,6,18,5,11,15,17,3,13,7,1,9],color:"from-rose-400 to-pink-500"},
  {name:"Harpeth Hills",short:"HARPETH",pars:[4,5,3,4,4,4,3,4,5,4,4,3,4,4,3,5,4,5],si:[9,3,15,11,5,13,17,7,1,12,8,16,10,4,18,2,14,6],color:"from-lime-400 to-emerald-500"},
 ];
-function calc(scores,pars,sis,hcpMap){
+function calc(scores, pars, sis, hcpMap){
  const players=Object.keys(scores);
  const hp={}; players.forEach(p=>hp[p]=Array(18).fill(0));
  let carry=0,cc=0;
  for(let h=0;h<18;h++){
   const nets=[];
   players.forEach(p=>{
-   const g=scores[p][h];
-   if(g===""||g==null) return;
-   let s=0; const hc=hcpMap[p]||0;
-   if(hc>=sis[h]) s=1;
-   if(hc>=18 && sis[h]<=hc-18) s++;
-   nets.push({p,net:g-s});
+    const g=scores[p][h]; if(g===""||g==null) return;
+    let s=0; const hc=hcpMap[p]||0;
+    if(hc>=sis[h]) s=1;
+    if(hc>=18 && sis[h]<=hc-18) s++;
+    nets.push({p,net:g-s});
   });
   if(!nets.length) continue;
   const min=Math.min(...nets.map(x=>x.net));
   const winners=nets.filter(x=>x.net===min);
   if(winners.length===1){
-   let pts=2+carry; if(pts>6) pts=6;
-   hp[winners[0].p][h]=pts; carry=0; cc=0;
+   const perLoser=Math.min(2+carry,6); // Win 2, 1 tie=4, 2+ ties max 6
+   const winner=winners[0].p;
+   hp[winner][h]+=perLoser*(players.length-1); // winner +4 for 3 players
+   players.forEach(p=>{
+     if(p!==winner && scores[p][h]!=="" && scores[p][h]!=null) hp[p][h]-=perLoser; // losers -2 each
+   });
+   carry=0; cc=0;
   }else{
    if(cc<2){carry+=2; cc++;} else carry=4;
   }
  }
- players.forEach(p=>{
-  for(let h=0;h<18;h++){
-   const g=scores[p][h];
-   if(g===""||g==null) continue;
-   if(g===pars[h]-1) hp[p][h]+=2;
-   else if(g<=pars[h]-2) hp[p][h]+=5;
-  }
- });
- const totals={}, gross={};
+ // Bonuses zero-sum too: birdie +2 per player, eagle +5 per player
+ for(let h=0;h<18;h++){
+  const birdieMakers=[],eagleMakers=[];
+  players.forEach(p=>{
+    const g=scores[p][h]; if(g===""||g==null) return;
+    const par=pars[h];
+    if(g===par-1) birdieMakers.push(p);
+    else if(g<=par-2) eagleMakers.push(p);
+  });
+  birdieMakers.forEach(maker=>{
+   const others=players.filter(p=>p!==maker && scores[p][h]!=="" && scores[p][h]!=null);
+   const gain=2*others.length; hp[maker][h]+=gain; others.forEach(o=>hp[o][h]-=2);
+  });
+  eagleMakers.forEach(maker=>{
+   const others=players.filter(p=>p!==maker && scores[p][h]!=="" && scores[p][h]!=null);
+   const gain=5*others.length; hp[maker][h]+=gain; others.forEach(o=>hp[o][h]-=5);
+  });
+ }
+ const totals={},gross={};
  players.forEach(p=>{
   totals[p]=hp[p].reduce((a,b)=>a+b,0);
   gross[p]=(scores[p]||[]).reduce((a,v)=>a+(parseInt(v)||0),0);
  });
  return {hp,totals,gross,carry,cc};
-}
-export default function App(){
+}export default function App(){
  const [cIdx,setCIdx]=useState(0);
  const course=COURSES[cIdx];
  const [players,setPlayers]=useState([{name:"Joe",hcp:12},{name:"Brad",hcp:8},{name:"Graham",hcp:15}]);
