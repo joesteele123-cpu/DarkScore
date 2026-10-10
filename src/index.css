@@ -1,9 +1,0 @@
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-* { font-family: 'Inter', system-ui, sans-serif; }
-.mono { font-family: 'JetBrains Mono', monospace; }
-body { background: #080C12; color: #E2E8F0; }
-.glass { background: rgba(20,27,36,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(46,61,79,0.6); }
-.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.15); }
