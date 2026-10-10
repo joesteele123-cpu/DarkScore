@@ -63,7 +63,7 @@ function calc(scores, pars, sis, hcpMap){
  const [cIdx,setCIdx]=useState(0);
  const course=COURSES[cIdx];
  const [players,setPlayers]=useState([{name:"Joe",hcp:12},{name:"Brad",hcp:8},{name:"Graham",hcp:15}]);
- const [scores,setScores]=useState(()=>{const o={}; [{name:"Joe",hcp:12},{name:"Brad",hcp:8},{name:"Graham",hcp:15}].forEach(p=>o[p.name]=Array(18).fill("")); return o;});
+ const [scores,setScores]=useState(()=>{const o={}; [{name:"Joe",hcp:0},{name:"Brad",hcp:0},{name:"Graham",hcp:0}].forEach(p=>o[p.name]=Array(18).fill("")); return o;});
  const [standings,setStandings]=useState({});
  const [rounds,setRounds]=useState([]);
  const [tab,setTab]=useState("scorecard");
