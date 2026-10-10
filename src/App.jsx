@@ -44,7 +44,7 @@ function calc(scores, pars, sis, hcpMap, useHcp) {
 
 export default function App() {
   const [cIdx, setCIdx] = useState(1); const course = COURSES[cIdx];
-  const [players] = useState([{ name: "Graham", hcp: 9 }, { name: "Joe", hcp: 14 }, { name: "Brad", hcp: 18 }]);
+  const [players] = useState([{ name: "Graham", hcp: 9 }, { name: "Joe", hcp: 17 }, { name: "Brad", hcp: 9 }]);
   const [scores, setScores] = useState(() => { const o = {}; players.forEach(p => o[p.name] = Array(18).fill("")); return o; });
   const [useHcp, setUseHcp] = useState(false);
   const [standings, setStandings] = useState({}); const [rounds, setRounds] = useState([]);
