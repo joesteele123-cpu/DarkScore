@@ -58,8 +58,8 @@ export default function App() {
   const allCourses = useMemo(()=> [...COURSES,...customCourses], [customCourses]);
   const [cIdx, setCIdx] = useState(1);
   const course = allCourses[cIdx] || COURSES[1];
-  const [players, setPlayers] = useState([{ name: "Graham", hcp: 0 }, { name: "Joe", hcp: 2 }, { name: "Brad", hcp: 0 }]);
-  const [scores, setScores] = useState(() => { const o = {}; ["Graham","Joe","Brad"].forEach(n=>o[n]=Array(18).fill("")); return o; });
+  const [players, setPlayers] = useState([{ name: "Joe", hcp: 2 }, { name: "Brad", hcp: 0 }, { name: "Graham", hcp: 0 }]);
+  const [scores, setScores] = useState(() => { const o = {}; ["Joe","Brad","Graham"].forEach(n=>o[n]=Array(18).fill("")); return o; });
   const [useHcp, setUseHcp] = useState(true);
   const [newName, setNewName] = useState(""); const [newHcp, setNewHcp] = useState(10);
   const [standings, setStandings] = useState({}); const [rounds, setRounds] = useState([]);
