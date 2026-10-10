@@ -85,12 +85,12 @@ export default function App() {
     <div className="min-h-screen bg-[#05080F] text-white">
       <div className="sticky top-0 z-50 bg-[#05080F]/90 backdrop-blur border-b border-white/10 p-4 flex justify-between items-center">
         <div>
-          <div className="font-black flex items-center gap-2">DarkScore Tour <span className="text- px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300">ZERO-SUM FIXED</span></div>
-          <div className="text- opacity-50">{course.short} • Par {course.pars.reduce((a,b)=>a+b,0)} • Win 2 per player • Max 6 + bonuses • Birdie +2 • Eagle +5 • {useHcp? "NET" : "GROSS"} • Carry {res.carry}</div>
+          <div className="font-black flex items-center gap-2">DarkScore Tour <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300">ZERO-SUM FIXED</span></div>
+          <div className="text-[11px] opacity-50">{course.short} • Par {course.pars.reduce((a,b)=>a+b,0)} • Win 2 per player • Max 6 + bonuses • Birdie +2 • Eagle +5 • {useHcp? "NET" : "GROSS"} • Carry {res.carry}</div>
         </div>
         <label className="flex items-center gap-2 text-xs px-3 py-2 rounded-full bg-white/10 border border-white/10 cursor-pointer"><input type="checkbox" checked={useHcp} onChange={e => setUseHcp(e.target.checked)} />HANDICAP {useHcp? "ON" : "OFF"}</label>
       </div>
-      <div className="max-w- mx-auto p-4 space-y-4">
+      <div className="max-w-[1600px] mx-auto p-4 space-y-4">
         <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
           {COURSES.map((c, i) => (
             <button key={c.short} onClick={() => setCIdx(i)} className={`rounded-2xl border p-4 text-left ${i === cIdx? "bg-white text-black" : "bg-[#0E131E] border-white/10"}`}>
@@ -99,8 +99,8 @@ export default function App() {
           ))}
         </div>
         <div className="rounded-2xl bg-[#0E131E] border border-white/10 overflow-hidden">
-          <div className="overflow-x-auto"><div className="min-w- grid" style={{gridTemplateColumns:"60px 60px 60px repeat(3, 1fr) 80px"}}>
-            <div className="p-3 text- opacity-50">HOLE</div><div className="p-3 text- opacity-50">PAR</div><div className="p-3 text- opacity-50">SI</div>{players.map(p => <div key={p.name} className="p-3 text- font-bold">{p.name}</div>)}<div className="p-3 text- opacity-50">POT</div>
+          <div className="overflow-x-auto"><div className="min-w-[1100px] grid" style={{gridTemplateColumns:"60px 60px 60px repeat(3, 1fr) 80px"}}>
+            <div className="p-3 text-[11px] opacity-50">HOLE</div><div className="p-3 text-[11px] opacity-50">PAR</div><div className="p-3 text-[11px] opacity-50">SI</div>{players.map(p => <div key={p.name} className="p-3 text- font-bold">{p.name}</div>)}<div className="p-3 text-[11px] opacity-50">POT</div>
             {Array.from({length:18}, (_,h) => (
               <React.Fragment key={h}>
                 <div className="p-3 border-t border-white/10">{h+1}</div><div className="p-3 border-t border-white/10">{course.pars[h]}</div><div className="p-3 border-t border-white/10 text-xs opacity-60">{course.si[h]}</div>
