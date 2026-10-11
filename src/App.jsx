@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 const LOGO = "/logo.jpg";
-
 const COURSES = [
   { name: "Nashboro Golf Club", short: "NASH", pars: [4,4,3,5,4,4,5,3,4,5,4,4,3,4,3,4,5,4], si: [2,8,16,6,12,4,18,14,10,7,3,5,17,9,15,1,13,11], area: "Nashville" },
   { name: "Pine Creek Golf Course", short: "PINE", pars: [4,5,3,4,4,3,4,5,4,4,4,3,5,4,3,4,5,4], si: [17,9,3,1,13,11,15,5,7,6,18,8,14,2,16,10,4,12], area: "Mt Juliet" },
@@ -39,7 +38,7 @@ function getRoundStats(scores, pars) {
 
 function calc(scores, pars, sis, hcpMap, useHcp) {
   try {
-    if (!pars || pars.length!== 18) return { hp:{}, totals:{}, gross:{}, carry:0, tieBreak:null };
+    if (!pars || pars.length!== 18) return { hp: {}, totals: {}, gross: {}, carry: 0, tieBreak: null };
     const players = Object.keys(scores || {}).filter(p => (scores[p]||[]).some(v=>v!=="" && v!=null));
     const hp = {}; players.forEach(p => hp[p] = Array(18).fill(0));
     let carry = 0, cc = 0, tieBreak = null;
@@ -49,91 +48,94 @@ function calc(scores, pars, sis, hcpMap, useHcp) {
         const g = scores[p]?.[h]; if (g === "" || g == null) return;
         let s = 0;
         if (useHcp && sis[h]) {
-          if (p === "Joe") { if (sis[h] === 1 || sis[h] === 2) s = 1; }
+          if (p === "Joe") { if (sis[h]===1 || sis[h]===2) s = 1; }
           else { const hc = hcpMap[p] || 0; if (hc >= sis[h]) s = 1; if (hc >= 18 && sis[h] <= hc - 18) s++; }
         }
-        nets.push({ p, net: g - s, gross: g });
+        nets.push({ p, net: g - s });
       });
       if (!nets.length) continue;
-      const min = Math.min(...nets.map(x => x.net));
-      const winners = nets.filter(x => x.net === min);
+      const min = Math.min(...nets.map(x=>x.net));
+      const winners = nets.filter(x=>x.net===min);
       if (winners.length === 1) {
         const perLoser = Math.min(2 + carry, 6);
-        const winner = winners[0].p;
-        hp[winner][h] += perLoser * (players.length - 1);
-        players.forEach(p => { if (p!== winner && scores[p]?.[h]!== "" && scores[p]?.[h]!= null) hp[p][h] -= perLoser; });
+        const w = winners[0].p;
+        hp[w][h] += perLoser * (players.length - 1);
+        players.forEach(p=>{ if(p!==w && scores[p]?.[h]!=="" && scores[p]?.[h]!=null) hp[p][h]-=perLoser; });
         carry = 0; cc = 0;
       } else {
-        if (h === 17 && carry >= 0) {
-          // LAST HOLE TIE BREAKER: most pars -> most birdies -> least double bogeys
+        if (h === 17) {
           const stats = getRoundStats(scores, pars);
-          const ranked = [...players].sort((a,b) => {
-            const sa = stats[a] || {parsC:0,birdies:0,doubleBogeys:99};
-            const sb = stats[b] || {parsC:0,birdies:0,doubleBogeys:99};
-            if (sb.parsC!== sa.parsC) return sb.parsC - sa.parsC;
-            if (sb.birdies!== sa.birdies) return sb.birdies - sa.birdies;
-            if (sa.doubleBogeys!== sb.doubleBogeys) return sa.doubleBogeys - sb.doubleBogeys;
-            return 0;
-          });
-          const winner = ranked[0];
+          let remaining = [...players];
+          const maxPars = Math.max(...remaining.map(p=>stats[p]?.parsC||0));
+          remaining = remaining.filter(p=>(stats[p]?.parsC||0)===maxPars);
+          let reason = `most pars ${maxPars}`;
+          if (remaining.length > 1) {
+            const maxBird = Math.max(...remaining.map(p=>stats[p]?.birdies||0));
+            remaining = remaining.filter(p=>(stats[p]?.birdies||0)===maxBird);
+            reason = `${maxPars} pars tie → most birdies ${maxBird}`;
+            if (remaining.length > 1) {
+              const minDbl = Math.min(...remaining.map(p=>stats[p]?.doubleBogeys?? 99));
+              remaining = remaining.filter(p=>(stats[p]?.doubleBogeys?? 99)===minDbl);
+              reason = `${maxPars} pars tie → ${maxBird} birdies tie → least doubles ${minDbl}`;
+            }
+          }
+          const winner = remaining[0];
           const perLoser = Math.min(2 + carry, 6);
           hp[winner][h] += perLoser * (players.length - 1);
-          players.forEach(p => { if (p!== winner && scores[p]?.[h]!== "" && scores[p]?.[h]!= null) hp[p][h] -= perLoser; });
-          tieBreak = { winner, stats, ranked, reason: `Last hole tie • ${winner} wins tie breaker: ${stats[winner].parsC} pars, ${stats[winner].birdies} birdies, ${stats[winner].doubleBogeys} double bogeys` };
+          players.forEach(p=>{ if(p!==winner && scores[p]?.[h]!=="" && scores[p]?.[h]!=null) hp[p][h]-=perLoser; });
+          tieBreak = { winner, reason, stats };
           carry = 0; cc = 0;
         } else {
           if (cc < 2) { carry += 2; cc++; } else carry = 4;
         }
       }
     }
-    for (let h = 0; h < 18; h++) {
-      const bm = [], em = [];
-      players.forEach(p => { const g = scores[p]?.[h]; if (g === "" || g == null) return; if (g === pars[h] - 1) bm.push(p); else if (g <= pars[h] - 2) em.push(p); });
-      bm.forEach(m => { const o = players.filter(p => p!== m && scores[p]?.[h]!=="" && scores[p]?.[h]!=null); hp[m][h] += 2 * o.length; o.forEach(x => hp[x][h] -= 2); });
-      em.forEach(m => { const o = players.filter(p => p!== m && scores[p]?.[h]!=="" && scores[p]?.[h]!=null); hp[m][h] += 5 * o.length; o.forEach(x => hp[x][h] -= 5); });
+    for (let h=0; h<18; h++) {
+      const bm=[], em=[];
+      players.forEach(p=>{ const g=scores[p]?.[h]; if(g===""||g==null) return; if(g===pars[h]-1) bm.push(p); else if(g<=pars[h]-2) em.push(p); });
+      bm.forEach(m=>{ const o=players.filter(p=>p!==m && scores[p]?.[h]!=="" && scores[p]?.[h]!=null); hp[m][h]+=2*o.length; o.forEach(x=>hp[x][h]-=2); });
+      em.forEach(m=>{ const o=players.filter(p=>p!==m && scores[p]?.[h]!=="" && scores[p]?.[h]!=null); hp[m][h]+=5*o.length; o.forEach(x=>hp[x][h]-=5); });
     }
-    const totals = {}, gross = {}; players.forEach(p => { totals[p] = (hp[p]||[]).reduce((a,b)=>a+b,0); gross[p] = (scores[p]||[]).reduce((a,v)=>a+(parseInt(v)||0),0); });
+    const totals={}, gross={}; players.forEach(p=>{ totals[p]=(hp[p]||[]).reduce((a,b)=>a+b,0); gross[p]=(scores[p]||[]).reduce((a,v)=>a+(parseInt(v)||0),0); });
     return { hp, totals, gross, carry, tieBreak };
   } catch { return { hp:{}, totals:{}, gross:{}, carry:0, tieBreak:null }; }
 }
 
 export default function App() {
-  const [customCourses, setCustomCourses] = useState(() => {
-    try { const s = localStorage.getItem("darkscore_customCourses"); const p = s? JSON.parse(s) : []; return Array.isArray(p)? p.filter(c=>c && Array.isArray(c.pars) && c.pars.length===18) : []; } catch { return []; }
+  const [customCourses, setCustomCourses] = useState(()=>{
+    try{ const s=localStorage.getItem("darkscore_customCourses"); const p=s?JSON.parse(s):[]; return Array.isArray(p)?p.filter(c=>c&&c.pars&&c.pars.length===18):[]; }catch{ return []; }
   });
-  const allCourses = useMemo(() => [...COURSES,...customCourses], [customCourses]);
-  const [cIdx, setCIdx] = useState(0);
-  const course = allCourses[cIdx] || COURSES[0];
-  const [players, setPlayers] = useState([{ name:"Graham", hcp:0 }, { name:"Joe", hcp:2 }, { name:"Brad", hcp:0 }]);
-  const [scores, setScores] = useState(() => { const o={}; ["Graham","Joe","Brad"].forEach(n=>o[n]=Array(18).fill("")); return o; });
-  const [rounds, setRounds] = useState([]);
-  const [activeTab, setActiveTab] = useState("live");
-  const [showEdit, setShowEdit] = useState(false); const [editingIdx, setEditingIdx] = useState(null);
-  const [editForm, setEditForm] = useState({ name:"", short:"", parsStr:"", siStr:"", area:"" });
-  const [newName, setNewName] = useState(""); const [isSaving, setIsSaving] = useState(false);
-  const hcpMap = useMemo(() => { const m={}; players.forEach(p=>m[p.name]=p.hcp); return m; }, [players]);
-  const res = useMemo(() => calc(scores, course.pars, course.si, hcpMap, true), [scores, course, hcpMap]);
-  const roundStats = useMemo(() => getRoundStats(scores, course.pars), [scores, course]);
+  const allCourses = useMemo(()=>[...COURSES,...customCourses],[customCourses]);
+  const [cIdx, setCIdx]=useState(0);
+  const course=allCourses[cIdx]||COURSES[0];
+  const [players, setPlayers]=useState([{name:"Graham",hcp:0},{name:"Joe",hcp:2},{name:"Brad",hcp:0}]);
+  const [scores, setScores]=useState(()=>{ const o={}; ["Graham","Joe","Brad"].forEach(n=>o[n]=Array(18).fill("")); return o; });
+  const [rounds, setRounds]=useState([]);
+  const [activeTab, setActiveTab]=useState("live");
+  const [showEdit, setShowEdit]=useState(false); const [editingIdx,setEditingIdx]=useState(null);
+  const [editForm,setEditForm]=useState({name:"",short:"",parsStr:"",siStr:"",area:""});
+  const [newName,setNewName]=useState(""); const [newHcp,setNewHcp]=useState(10); const [isSaving,setIsSaving]=useState(false);
+  const hcpMap=useMemo(()=>{ const m={}; players.forEach(p=>m[p.name]=p.hcp); return m; },[players]);
+  const res=useMemo(()=>calc(scores,course.pars,course.si,hcpMap,true),[scores,course,hcpMap]);
+  const roundStats=useMemo(()=>getRoundStats(scores,course.pars),[scores,course]);
 
-  useEffect(() => {
-    (async () => {
-      try { const r=await fetch("/api/standings"); if(r.ok){ const d=await r.json(); const good=Array.isArray(d.rounds)? d.rounds.filter(x=>x && x.course && x.course.pars && x.course.pars.length===18):[]; setRounds(good); } } catch {}
-      try { const rc=await fetch("/api/custom-courses"); if(rc.ok){ const dc=await rc.json(); if(Array.isArray(dc.courses)){ const good=dc.courses.filter(c=>c && c.pars && c.pars.length===18); setCustomCourses(good); } } } catch {}
-    })();
-  }, []);
+  useEffect(()=>{(async()=>{ try{ const r=await fetch("/api/standings"); if(r.ok){ const d=await r.json(); const good=Array.isArray(d.rounds)?d.rounds.filter(x=>x&&x.course&&x.course.pars&&x.course.pars.length===18):[]; setRounds(good); } }catch{} })();},[]);
 
-  function upd(name, i, v){ const c=v.replace(/[^0-9]/g,""); setScores(prev=>{ const o={...prev}; const a=[...(o[name]||Array(18).fill(""))]; a[i]=c===""?"":parseInt(c,10); o[name]=a; return o; }); }
+  function upd(name,i,v){ const c=v.replace(/[^0-9]/g,""); setScores(prev=>{ const o={...prev}; const a=[...(o[name]||Array(18).fill(""))]; a[i]=c===""?"":parseInt(c,10); o[name]=a; return o; }); }
+  function addPlayer(){ const name=newName.trim(); if(!name||players.length>=4||players.find(p=>p.name===name)) return; setPlayers(p=>[...p,{name,hcp:parseInt(newHcp)||0}]); setScores(s=>({...s,[name]:Array(18).fill("")})); setNewName(""); }
+  function removePlayer(name){ if(players.length<=2) return; setPlayers(p=>p.filter(x=>x.name!==name)); setScores(s=>{ const o={...s}; delete o[name]; return o; }); }
+  function updateHcp(name,hcp){ setPlayers(p=>p.map(x=>x.name===name?{...x,hcp:parseInt(hcp)||0}:x)); }
 
   return (
-    <div className="min-h-screen bg-[#05080F] text-white font-sans">
-      <div className="sticky top-0 z-50 bg-[#0A0E1A]/90 backdrop-blur-xl border-b border-white/10 p-4">
+    <div className="min-h-screen bg-[#05080F] text-white">
+      <div className="sticky top-0 z-50 bg-[#0A0E1A]/90 backdrop-blur border-b border-white/10 p-4">
         <div className="max-w- mx-auto flex justify-between items-center gap-4 flex-wrap">
           <div className="flex items-center gap-5">
-            <img src={LOGO} alt="logo" className="w-20 h-20 md:w-28 md:h-28 rounded- object-contain bg-white/[0.06] border-2 border-fuchsia-400/60 shadow-[0_0_35px_rgba(217,70,239,0.45)] p-2.5" onError={e=>e.target.style.display="none"} />
+            <img src={LOGO} alt="" className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-contain bg-white/[0.06] border-2 border-fuchsia-400/60 p-2.5 shadow-[0_0_35px_rgba(217,70,239,0.45)]" onError={e=>e.target.style.display="none"} />
             <div>
-              <div className="font-black text- md:text- tracking-tight">Galactic Skins • BIG LOGO</div>
-              <div className="text- opacity-60 font-mono mt-1">{course.short} • Par {course.pars.reduce((a,b)=>a+b,0)} • {allCourses.length} courses • Last hole tie breaker: Most Pars → Birdies → Least Doubles</div>
-              {res.tieBreak && <div className="mt-2 text- px-3 py-1.5 rounded-full bg-amber-400 text-black font-black animate-pulse">🏆 TIE BREAKER: {res.tieBreak.reason}</div>}
+              <div className="font-black text-">Galactic Skins • BIG LOGO</div>
+              <div className="text- opacity-60 font-mono">{course.short} • Par {course.pars.reduce((a,b)=>a+b,0)} • Last hole: most pars → if tie most birdies → if tie least doubles</div>
+              {res.tieBreak && <div className="mt-2 text- px-3 py-1.5 rounded-full bg-amber-400 text-black font-black">🏆 TIE BREAKER: {res.tieBreak.winner} wins - {res.tieBreak.reason}</div>}
             </div>
           </div>
           <div className="flex rounded-full bg-white/5 border border-white/10 p-1">
@@ -147,119 +149,76 @@ export default function App() {
       <div className="max-w- mx-auto p-4 space-y-4">
         {activeTab==="live" && (
           <>
-            <div className="rounded- bg-[#121828] border border-white/10 p-4">
-              <div className="text- font-black opacity-40 mb-2">SELECT COURSE • TIE BREAKER ON 18: Most Pars → Birdies → Least Double Bogeys</div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                {allCourses.map((c, idx)=>(
-                  <button key={c.short+idx} onClick={()=>setCIdx(idx)} className={`rounded-xl border p-2.5 text-left ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}>
-                    <div className="text- font-black">{c.short}</div>
-                    <div className="text- font-bold leading-tight">{c.name}</div>
-                    <div className="text- opacity-60">Par {c.pars.reduce((a,b)=>a+b,0)}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {Object.keys(scores).map(pName=>{
-                const st = roundStats[pName] || {parsC:0,birdies:0,doubleBogeys:0};
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {players.map(p=>{
+                const st=roundStats[p.name]||{parsC:0,birdies:0,doubleBogeys:0};
                 return (
-                  <div key={pName} className="rounded- bg-[#121828] border border-white/10 p-4">
-                    <div className="flex justify-between"><span className="font-black">{pName}</span><span className={`text-xs px-2.5 py-1 rounded-full font-black ${res.totals[pName]>0?"bg-fuchsia-400 text-black":"bg-white/10"}`}>{res.totals[pName]>0?`+${res.totals[pName]}`:res.totals[pName]||0} PTS</span></div>
-                    <div className="mt-2 text- font-black">Gross {res.gross[pName]||0}</div>
-                    <div className="mt-2 flex gap-1.5 flex-wrap">
-                      <span className="text- px-2 py-1 rounded-full bg-white/10 border border-white/10">{st.parsC} Pars</span>
-                      <span className="text- px-2 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/20 text-emerald-200">{st.birdies} Birdies</span>
-                      <span className="text- px-2 py-1 rounded-full bg-red-400/15 border border-red-400/20 text-red-200">{st.doubleBogeys} Doubles</span>
+                  <div key={p.name} className="rounded- bg-[#121828] border border-white/10 p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black text-xs">{p.name[0]}</div><span className="font-bold">{p.name}</span>{p.name==="Joe"&&<span className="text- px-1.5 py-1 rounded-full bg-amber-400 text-black font-black">SI 1&2</span>}</div>
+                      <button onClick={()=>removePlayer(p.name)} className="w-7 h-7 rounded-full bg-white/10 text-xs">✕</button>
+                    </div>
+                    <div className="mt-3 flex justify-between items-baseline">
+                      <div><div className="text- font-black">{res.gross[p.name]||0}</div><div className="text- opacity-50">GROSS</div></div>
+                      <div className={`text- font-black px-3 py-1.5 rounded-full ${res.totals[p.name]>0?"bg-fuchsia-400 text-black":"bg-white/10"}`}>{res.totals[p.name]>0?`+${res.totals[p.name]}`:res.totals[p.name]||0} PTS</div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text- opacity-40">HCP</span>
+                      <input type="number" value={p.hcp} onChange={e=>updateHcp(p.name,e.target.value)} className="w-16 h-8 rounded-lg bg-black/50 border border-white/10 text-center font-bold text-sm" />
+                      <div className="ml-auto flex gap-1"><span className="text- px-1.5 py-1 rounded bg-white/10">{st.parsC}P</span><span className="text- px-1.5 py-1 rounded bg-emerald-400/20 text-emerald-200">{st.birdies}B</span><span className="text- px-1.5 py-1 rounded bg-red-400/20 text-red-200">{st.doubleBogeys}D</span></div>
                     </div>
                   </div>
                 );
               })}
+              {players.length<4 && (
+                <div className="rounded- border border-dashed border-fuchsia-400/30 bg-fuchsia-500/[0.07] p-4 flex flex-col justify-center">
+                  <div className="text- font-black opacity-60 mb-2">ADD 4TH PLAYER + MODIFY HCP RESTORED</div>
+                  <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Name" className="w-full h-9 rounded-lg bg-black/50 border border-white/10 px-3 text-sm mb-2" />
+                  <div className="flex gap-2">
+                    <input type="number" value={newHcp} onChange={e=>setNewHcp(e.target.value)} className="w-16 h-9 rounded-lg bg-black/50 border border-white/10 text-center text-sm" />
+                    <button onClick={addPlayer} className="flex-1 h-9 rounded-lg bg-white text-black font-black text-xs">+ Add Player</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl bg-[#121828] border border-white/10 p-3 grid grid-cols-2 md:grid-cols-7 gap-2">
+              {allCourses.map((c,idx)=><button key={c.short+idx} onClick={()=>setCIdx(idx)} className={`rounded-xl border p-2.5 text-left ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}><div className="text- font-black">{c.short}</div><div className="text- font-bold">{c.name}</div></button>)}
             </div>
 
             <div className="rounded- bg-[#121828] border border-white/10 overflow-hidden">
               <div className="p-4 flex justify-between items-center border-b border-white/10 flex-wrap gap-3">
-                <div>
-                  <div className="font-black text-">{course.name} • Enter Scores • Tie Breaker on 18 if Tied</div>
-                  <div className="text- opacity-60 mt-1">If hole 18 ties, winner = most pars → most birdies → least double bogeys • Carry {res.carry? `${res.carry} points` : "0"}</div>
-                </div>
-                <button onClick={async()=>{ setIsSaving(true); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:{...scores},totals:{...res.totals},gross:{...res.gross}, tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setIsSaving(false); const cl={}; Object.keys(scores).forEach(k=>cl[k]=Array(18).fill("")); setScores(cl); setActiveTab("history"); }} className="px-6 py-2.5 bg-fuchsia-500 text-white rounded-full font-black text-xs">{isSaving?"Saving...":"End Round → Save"}</button>
+                <div><div className="font-black">{course.name} • Enter Scores</div><div className="text- opacity-60 mt-1">If 18 ties → most pars → if tie most birdies → if tie least doubles • Carry {res.carry||0}</div></div>
+                <button onClick={async()=>{ setIsSaving(true); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:{...scores},totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setIsSaving(false); const cl={}; Object.keys(scores).forEach(k=>cl[k]=Array(18).fill("")); setScores(cl); setActiveTab("history"); }} className="px-6 py-2.5 bg-fuchsia-500 text-white rounded-full font-black text-xs">{isSaving?"Saving...":"End Round → Save"}</button>
               </div>
               <div className="overflow-x-auto">
-                <div className="min-w- grid" style={{gridTemplateColumns:"44px 44px repeat(3,1fr) 60px"}}>
-                  <div className="p-2.5 text- opacity-40 font-black">HOLE</div>
-                  <div className="p-2.5 text- opacity-40 font-black">PAR</div>
-                  {Object.keys(scores).map(p=><div key={p} className="p-2.5 text- font-black">{p.toUpperCase()}</div>)}
-                  <div className="p-2.5 text- opacity-40 font-black">POT</div>
+                <div className="min-w- grid" style={{gridTemplateColumns:`44px 44px repeat(${players.length},1fr) 60px`}}>
+                  <div className="p-2.5 text- opacity-40 font-black">HOLE</div><div className="p-2.5 text- opacity-40 font-black">PAR</div>{players.map(p=><div key={p.name} className="p-2.5 text- font-black">{p.name.toUpperCase()} H{p.hcp}</div>)}<div className="p-2.5 text- opacity-40">POT</div>
                   {Array.from({length:18},(_,h)=>{
                     const par=course.pars[h]; const isLast=h===17;
-                    return (
-                      <React.Fragment key={h}>
-                        <div className={`p-2.5 border-t border-white/10 text-xs font-black ${isLast?"bg-amber-400/20 text-amber-200":""}`}>{h+1}{isLast?"★":""}</div>
-                        <div className="p-2.5 border-t border-white/10"><span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></div>
-                        {Object.keys(scores).map(pn=>{
-                          const v=scores[pn]?.[h]??""; const hp=res.hp[pn]?.[h]||0;
-                          const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isDouble=v!==""&&v>=par+2;
-                          return (
-                            <div key={pn} className={`p-1.5 border-t border-white/10 flex items-center gap-1.5 ${isLast?"bg-amber-500/5":""} ${isBirdie?"bg-emerald-500/10":isPar?"bg-white/5":isDouble?"bg-red-500/10":""}`}>
-                              <input value={v} onChange={e=>upd(pn,h,e.target.value)} className={`w- h-9 rounded-xl bg-black/60 border-2 text-center font-black text- ${isBirdie?"border-emerald-400":isPar?"border-white/30":isDouble?"border-red-400/50":"border-white/15"}`} placeholder="-" />
-                              {isPar&&<span className="text- px-1.5 py-0.5 rounded-full bg-white/20 font-bold">PAR</span>}
-                              {isBirdie&&<span className="text- px-1.5 py-0.5 rounded-full bg-emerald-400 text-black font-black">BIRDIE</span>}
-                              {hp!==0&&<span className={`text- px-1.5 py-0.5 rounded-full font-black ${hp>0?"bg-fuchsia-400 text-black":"bg-red-400 text-black"}`}>{hp>0?`+${hp}`:hp}</span>}
-                            </div>
-                          );
-                        })}
-                        <div className="p-2.5 border-t border-white/10 text- font-mono opacity-60">{res.carry>0 &&!isLast? `+${res.carry}` : isLast && res.tieBreak? "TB" : ""}</div>
-                      </React.Fragment>
-                    );
+                    return (<React.Fragment key={h}><div className={`p-2.5 border-t border-white/10 text-xs font-black ${isLast?"bg-amber-400/20 text-amber-200":""}`}>{h+1}{isLast?"★":""}</div><div className="p-2.5 border-t border-white/10"><span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></div>{players.map(pn=>{ const v=scores[pn]?.[h]??""; const hp=res.hp[pn]?.[h]||0; return (<div key={pn} className={`p-1.5 border-t border-white/10 flex items-center gap-1.5 ${isLast?"bg-amber-500/5":""}`}><input value={v} onChange={e=>upd(pn,h,e.target.value)} className="w- h-9 rounded-xl bg-black/60 border border-white/20 text-center font-black text-" placeholder="-" />{hp!==0&&<span className={`text- px-1.5 py-0.5 rounded-full font-black ${hp>0?"bg-fuchsia-400 text-black":"bg-red-400 text-black"}`}>{hp>0?`+${hp}`:hp}</span>}</div>); })}<div className="p-2.5 border-t border-white/10 text- opacity-60">{isLast&&res.tieBreak?"TB":res.carry>0&&!isLast?`+${res.carry}`:""}</div></React.Fragment>);
                   })}
                 </div>
               </div>
-              {res.tieBreak && <div className="p-3 bg-amber-400 text-black font-bold text-xs text-center">🏆 Last Hole Tied — Tie Breaker Applied: {res.tieBreak.reason} — Winner gets pot</div>}
+              {res.tieBreak && <div className="p-3 bg-amber-400 text-black font-bold text-xs text-center">🏆 Last Hole Tie → Tie Breaker: {res.tieBreak.reason} → {res.tieBreak.winner} wins pot</div>}
             </div>
           </>
         )}
 
-        {activeTab==="history" && (
+        {activeTab==="courses" && (
           <div className="rounded-xl bg-[#121828] border border-white/10 p-4">
-            <div className="font-black mb-3">History • {rounds.length} rounds • Last hole tie breaker tracked</div>
-            {rounds.length===0? <div className="py-12 text-center opacity-40">No rounds yet</div> : rounds.map(r=>(
-              <div key={r.id} className="p-3 rounded-xl bg-black/30 border border-white/10 mb-2 flex justify-between items-center">
-                <div><div className="text-xs font-mono opacity-60">{r.dateStr} • {r.course?.short} {r.tieBreak? `• TB: ${r.tieBreak.winner}`:""}</div><div className="text-xs mt-1">{Object.entries(r.totals||{}).map(([n,pts])=>`${n} ${pts}`).join(" • ")}</div></div>
-                <button onClick={()=>{ const upd=rounds.filter(x=>x.id!==r.id); setRounds(upd); fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:upd})}); }} className="px-3 py-1.5 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button>
-              </div>
-            ))}
+            <div className="font-black mb-3">Courses • {allCourses.length} • Edit Works • Big Logo • Add/Remove Restored</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {allCourses.map((c,idx)=><div key={c.short+idx} className={`rounded-xl border p-3 ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}><div className="flex justify-between"><span className="text- font-black px-2 py-1 rounded-full bg-white/10">{c.short}</span><span className="text- opacity-60">{c.area}</span></div><div className="font-bold mt-2 text-">{c.name}</div><div className="text- opacity-60">Par {c.pars.reduce((a,b)=>a+b,0)}</div><div className="mt-2 flex gap-2"><button onClick={()=>{ setEditingIdx(idx); setEditForm({name:c.name,short:c.short,parsStr:c.pars.join(","),siStr:c.si.join(","),area:c.area}); setShowEdit(true); }} className="flex-1 h-8 rounded-full bg-white/10 border border-white/20 text-xs font-bold">✏️ Edit</button><button onClick={()=>setCIdx(idx)} className="flex-1 h-8 rounded-full bg-white text-black font-black text-xs">Use</button></div></div>)}
+            </div>
+            {showEdit && (<div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"><div className="bg-[#121828] rounded-2xl border border-white/20 p-5 w-full max-w-"><div className="font-black mb-3">Edit {editForm.name}</div><input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} className="w-full h-9 px-3 rounded bg-black/50 border border-white/10 mb-2 text-sm" /><div className="flex gap-2 mb-2"><input value={editForm.short} onChange={e=>setEditForm(f=>({...f,short:e.target.value}))} className="flex-1 h-9 px-3 rounded bg-black/50 border border-white/10 text-sm" /><input value={editForm.area} onChange={e=>setEditForm(f=>({...f,area:e.target.value}))} className="flex-1 h-9 px-3 rounded bg-black/50 border border-white/10 text-sm" /></div><textarea value={editForm.parsStr} onChange={e=>setEditForm(f=>({...f,parsStr:e.target.value}))} className="w-full h-16 p-2 rounded bg-black/50 border border-white/10 text-xs font-mono mb-2" /><textarea value={editForm.siStr} onChange={e=>setEditForm(f=>({...f,siStr:e.target.value}))} className="w-full h-16 p-2 rounded bg-black/50 border border-white/10 text-xs font-mono mb-3" /><div className="flex gap-2"><button onClick={()=>setShowEdit(false)} className="flex-1 h-10 rounded-full bg-white/10">Cancel</button><button onClick={async()=>{ const pars=editForm.parsStr.split(",").map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)); const si=editForm.siStr.split(",").map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)); if(pars.length!==18){ alert(`Need 18 pars have ${pars.length}`); return; } if(si.length!==18){ alert(`Need 18 SI have ${si.length}`); return; } let upd; if(editingIdx>=COURSES.length){ const ci=editingIdx-COURSES.length; upd=[...customCourses]; upd[ci]={...upd[ci],name:editForm.name,short:editForm.short.toUpperCase(),pars,si,area:editForm.area}; } else { upd=[...customCourses,{name:editForm.name,short:editForm.short.toUpperCase(),pars,si,area:editForm.area+" (Edited)"}]; setCIdx(COURSES.length+upd.length-1); } setCustomCourses(upd); localStorage.setItem("darkscore_customCourses",JSON.stringify(upd)); try{ await fetch("/api/custom-courses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({courses:upd})}); }catch{} setShowEdit(false); }} className="flex-1 h-10 rounded-full bg-fuchsia-500 text-white font-black">Save</button></div></div></div>)}
           </div>
         )}
 
-        {activeTab==="courses" && (
+        {activeTab==="history" && (
           <div className="rounded-xl bg-[#121828] border border-white/10 p-4">
-            <div className="font-black mb-3">Courses • {allCourses.length} • Edit Works • Big Logo</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {allCourses.map((c, idx)=>(
-                <div key={c.short+idx} className={`rounded-xl border p-3 ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}>
-                  <div className="flex justify-between"><span className="text- font-black px-2 py-1 rounded-full bg-white/10">{c.short}</span><span className="text- opacity-60">{c.area}</span></div>
-                  <div className="font-bold mt-2 text-">{c.name}</div>
-                  <div className="text- opacity-60">Par {c.pars.reduce((a,b)=>a+b,0)}</div>
-                  <div className="mt-2 flex gap-2">
-                    <button onClick={()=>{ setEditingIdx(idx); setEditForm({name:c.name,short:c.short,parsStr:c.pars.join(","),siStr:c.si.join(","),area:c.area}); setShowEdit(true); }} className="flex-1 h-8 rounded-full bg-white/10 border border-white/20 text-xs font-bold">✏️ Edit</button>
-                    <button onClick={()=>setCIdx(idx)} className="flex-1 h-8 rounded-full bg-white text-black font-black text-xs">Use</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {showEdit && (
-              <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                <div className="bg-[#121828] rounded-2xl border border-white/20 p-5 w-full max-w-">
-                  <div className="font-black mb-3">Edit {editForm.name}</div>
-                  <input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} className="w-full h-9 px-3 rounded bg-black/50 border border-white/10 mb-2 text-sm" />
-                  <div className="flex gap-2 mb-2"><input value={editForm.short} onChange={e=>setEditForm(f=>({...f,short:e.target.value}))} className="flex-1 h-9 px-3 rounded bg-black/50 border border-white/10 text-sm" /><input value={editForm.area} onChange={e=>setEditForm(f=>({...f,area:e.target.value}))} className="flex-1 h-9 px-3 rounded bg-black/50 border border-white/10 text-sm" /></div>
-                  <textarea value={editForm.parsStr} onChange={e=>setEditForm(f=>({...f,parsStr:e.target.value}))} className="w-full h-16 p-2 rounded bg-black/50 border border-white/10 text-xs font-mono mb-2" />
-                  <textarea value={editForm.siStr} onChange={e=>setEditForm(f=>({...f,siStr:e.target.value}))} className="w-full h-16 p-2 rounded bg-black/50 border border-white/10 text-xs font-mono mb-3" />
-                  <div className="flex gap-2"><button onClick={()=>setShowEdit(false)} className="flex-1 h-10 rounded-full bg-white/10">Cancel</button><button onClick={async()=>{ const pars=editForm.parsStr.split(",").map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)); const si=editForm.siStr.split(",").map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)); if(pars.length!==18){ alert(`Need 18 pars have ${pars.length}`); return; } if(si.length!==18){ alert(`Need 18 SI have ${si.length}`); return; } let upd; if(editingIdx>=COURSES.length){ const ci=editingIdx-COURSES.length; upd=[...customCourses]; upd[ci]={...upd[ci],name:editForm.name,short:editForm.short.toUpperCase(),pars,si,area:editForm.area}; } else { upd=[...customCourses,{name:editForm.name,short:editForm.short.toUpperCase(),pars,si,area:editForm.area+" (Edited)"}]; setCIdx(COURSES.length+upd.length-1); } setCustomCourses(upd); localStorage.setItem("darkscore_customCourses",JSON.stringify(upd)); try{ await fetch("/api/custom-courses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({courses:upd})}); }catch{} setShowEdit(false); }} className="flex-1 h-10 rounded-full bg-fuchsia-500 text-white font-black">Save Fixed</button></div>
-                </div>
-              </div>
-            )}
+            <div className="font-black mb-3">History • {rounds.length} rounds • Tie breaker saved</div>
+            {rounds.length===0? <div className="py-12 text-center opacity-40">No rounds yet</div> : rounds.map(r=>(<div key={r.id} className="p-3 rounded-xl bg-black/30 border border-white/10 mb-2 flex justify-between items-center"><div><div className="text-xs font-mono opacity-60">{r.dateStr} • {r.course?.short} {r.tieBreak?`• TB Winner: ${r.tieBreak.winner} (${r.tieBreak.reason})`:""}</div><div className="text-xs mt-1">{Object.entries(r.totals||{}).map(([n,pts])=>`${n} ${pts}`).join(" • ")}</div></div><button onClick={()=>{ const u=rounds.filter(x=>x.id!==r.id); setRounds(u); fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }} className="px-3 py-1.5 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button></div>))}
           </div>
         )}
       </div>
