@@ -74,9 +74,9 @@ export default function App(){
   const allCourses=useMemo(()=>[...COURSES,...customCourses],[customCourses]);
   const [cIdx,setCIdx]=useState(1); const course=allCourses[cIdx]||COURSES[1];
   const [players,setPlayers]=useState(()=>[
-    {name:"Joe",hcp:0,scores:Array(18).fill("")},
-    {name:"Brad",hcp:2,scores:Array(18).fill("")},
     {name:"Graham",hcp:0,scores:Array(18).fill("")},
+    {name:"Joe",hcp:2,scores:Array(18).fill("")},
+    {name:"Brad",hcp:0,scores:Array(18).fill("")},
   ]);
   const [rounds,setRounds]=useState([]); const [activeTab,setActiveTab]=useState("live");
   const [showEdit,setShowEdit]=useState(false); const [editingIdx,setEditingIdx]=useState(null);
