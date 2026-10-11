@@ -70,8 +70,7 @@ function calc(players, pars, sis){
 export default function App(){
   const [customCourses,setCustomCourses]=useState(()=>{ try{ const s=localStorage.getItem("darkscore_customCourses"); const p=s?JSON.parse(s):[]; return Array.isArray(p)?p.filter(c=>c&&c.pars&&c.pars.length===18):[]; }catch{ return []; } });
   const allCourses=useMemo(()=>[...COURSES,...customCourses],[customCourses]);
-  const [cIdx,setCIdx]=useState(1); const course=allCourses[cIdx]||COURSES[1];
-  // ORDER: Joe, Brad, Graham
+  const [cIdx,setCIdx]=useState(0); const course=allCourses[cIdx]||COURSES[0];
   const [players,setPlayers]=useState(()=>[
     {name:"Joe",hcp:2,scores:Array(18).fill("")},
     {name:"Brad",hcp:0,scores:Array(18).fill("")},
@@ -101,8 +100,8 @@ export default function App(){
           <div className="flex items-center gap-5">
             <img src={LOGO} alt="" className="w-20 h-20 md:w-28 md:h-28 rounded- object-contain bg-white/[0.06] border-2 border-fuchsia-400/60 p-2.5 shadow-[0_0_35px_rgba(217,70,239,0.45)]" onError={e=>e.target.style.display="none"} />
             <div>
-              <div className="font-black text-">Galactic Skins • JOE BRAD GRAHAM</div>
-              <div className="text- opacity-60 font-mono">{course.short} • Par {course.pars.reduce((a,b)=>a+b,0)} • Order: Joe (SI 1&2) → Brad → Graham • Hole 8 fixed • Gross + PTS</div>
+              <div className="font-black text-">Galactic Skins • NASHBORO FORMATTING FIX</div>
+              <div className="text- opacity-60 font-mono">{course.name} • Par {course.pars.reduce((a,b)=>a+b,0)} • Order: Joe → Brad → Graham • Table layout fixed for 3rd player</div>
               {res.tieBreak && <div className="mt-2 text- px-3.5 py-1.5 rounded-full bg-amber-400 text-black font-black">🏆 {res.tieBreak.winner} - {res.tieBreak.reason}</div>}
             </div>
           </div>
@@ -124,7 +123,7 @@ export default function App(){
                   <div key={p.name} className="rounded- bg-[#121828] border border-white/10 p-5">
                     <div className="flex justify-between items-center"><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black text-xs">{p.name[0]}</div><span className="font-bold">{p.name}</span>{p.name==="Joe"&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">SI 1&2</span>}</div><button onClick={()=>removePlayer(p.name)} className="w-8 h-8 rounded-full bg-white/10 text-xs">✕</button></div>
                     <div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded- bg-black/40 border border-white/10 p-3 text-center"><div className="text- opacity-50">GROSS</div><div className="text- font-black">{g}</div></div><div className={`rounded- border p-3 text-center ${pts>0?"bg-fuchsia-500 text-black":"bg-black/40 border-white/10"}`}><div className="text- opacity-70">RUNNING PTS</div><div className="text- font-black">{pts>0?`+${pts}`:pts}</div></div></div>
-                    <div className="mt-4 flex items-center gap-2"><span className="text- opacity-40">HCP</span><input type="number" value={p.hcp} onChange={e=>updateHcp(p.name,e.target.value)} className="w-16 h-9 rounded-xl bg-black/50 border border-white/10 text-center font-bold text-sm" /><div className="ml-auto flex gap-1"><span className="text- px-2 py-1 rounded-full bg-white/10">{st.parsC} PAR</span><span className="text- px-2 py-1 rounded-full bg-emerald-400/20 text-emerald-200 font-black">{st.birdies} BIRDIE</span><span className="text- px-2 py-1 rounded-full bg-amber-400/20 text-amber-200 font-black">{st.eagles} EAGLE</span></div></div>
+                    <div className="mt-4 flex items-center gap-2"><span className="text- opacity-40">HCP</span><input type="number" value={p.hcp} onChange={e=>updateHcp(p.name,e.target.value)} className="w-16 h-9 rounded-xl bg-black/50 border border-white/10 text-center font-bold text-sm" /><div className="ml-auto flex gap-1"><span className="text- px-2 py-1 rounded-full bg-white/10">{st.parsC} PAR</span><span className="text- px-2 py-1 rounded-full bg-emerald-400/20 text-emerald-200 font-black">{st.birdies} BIRDIE</span></div></div>
                   </div>
                 );
               })}
@@ -132,18 +131,59 @@ export default function App(){
             </div>
 
             <div className="rounded-xl bg-[#121828]/80 border border-white/10 p-3 grid grid-cols-2 md:grid-cols-7 gap-2">
-              {allCourses.map((c,idx)=><button key={c.short+idx} onClick={()=>setCIdx(idx)} className={`rounded-xl border p-3 text-left ${idx===cIdx?"bg-white text-black shadow-lg":"bg-black/30 border-white/10"}`}><div className="text- font-black">{c.short}</div><div className="text- font-bold mt-1">{c.name}</div></button>)}
+              {allCourses.map((c,idx)=><button key={c.short+idx} onClick={()=>setCIdx(idx)} className={`rounded-xl border p-3 text-left ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}><div className="text- font-black">{c.short}</div><div className="text- font-bold">{c.name}</div></button>)}
             </div>
 
             <div className="rounded- bg-[#121828] border border-white/10 overflow-hidden">
-              <div className="p-5 flex justify-between items-center border-b border-white/10 flex-wrap gap-4 bg-black/20"><div><div className="font-black text-">{course.name} • Order Joe → Brad → Graham • Hole 8 = +2 each from non-birdie, push</div><div className="text- opacity-60 mt-1">Birdie only vs non-birdie • Eagle only vs non-eagle • Gross + PTS live • Tie 18: pars→birdies→least doubles</div></div><button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveTab("history"); }} className="px-7 py-3 bg-fuchsia-500 text-white rounded-full font-black text-xs">End Round → Save</button></div>
-              <div className="overflow-x-auto"><div className="min-w-">
-                <div className="grid bg-black/30" style={{gridTemplateColumns:`50px 50px repeat(${players.length},1fr) 80px`}}><div className="p-3 text- opacity-40 font-black">HOLE</div><div className="p-3 text- opacity-40 font-black">PAR</div>{players.map(p=><div key={`hdr-${p.name}`} className="p-3 text- font-black">{p.name} H{p.hcp} G:{res.gross?.[p.name]||0} P:{res.totals?.[p.name]||0}</div>)}<div className="p-3 text- opacity-40">POT</div></div>
-                {Array.from({length:18},(_,h)=>{
-                  const par=course.pars[h]||4;
-                  return (<div key={`row-${h}`} className="grid hover:bg-white/[0.02]" style={{gridTemplateColumns:`50px 50px repeat(${players.length},1fr) 80px`}}><div className={`p-3 border-t border-white/10 text-xs font-black flex items-center ${h===17?"bg-amber-400/20":""}`}>{h+1}{h===17?"★":""}</div><div className="p-3 border-t border-white/10 flex items-center"><span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></div>{players.map(p=>{ const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0; const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2; return (<div key={`${p.name}-${h}`} className={`p-2 border-t border-white/10 flex items-center gap-2 ${isEagle?"bg-amber-500/15":isBirdie?"bg-emerald-500/15":isPar?"bg-white/[0.03]":""}`}><input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-10 rounded-xl bg-black/60 border-2 text-center font-black text- ${isEagle?"border-amber-400":isBirdie?"border-emerald-400":isPar?"border-white/30":"border-white/15"}`} placeholder="-" /><div className="flex flex-col gap-1">{isPar&&<span className="text- px-2 py-1 rounded-full bg-white/15 font-bold">PAR</span>}{isBirdie&&<span className="text- px-2 py-1 rounded-full bg-emerald-400 text-black font-black">BIRDIE +2</span>}{isEagle&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">EAGLE +5</span>}<span className={`text- px-2 py-1 rounded-full font-mono font-bold ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/10 opacity-60"}`}>{hp!==0?`${hp>0?`+${hp}`:hp} (${run>0?`+${run}`:run})`:`(${run})`}</span></div></div>); })}<div className="p-3 border-t border-white/10 text- font-mono opacity-60 flex items-center">{h===17&&res.tieBreak?"TB":res.carry>0&&h!==17?`+${res.carry}`:""}</div></div>); })}
-                <div className="grid bg-black/40 border-t-2 border-fuchsia-400/30 font-black" style={{gridTemplateColumns:`50px 50px repeat(${players.length},1fr) 80px`}}><div className="p-4 text-">TOTAL</div><div className="p-4 text-">Par {course.pars.reduce((a,b)=>a+b,0)}</div>{players.map(p=><div key={`tot-${p.name}`} className="p-4 flex flex-col"><span className="text- leading-none">{res.gross?.[p.name]||0} gross</span><span className="text- mt-1">{res.totals?.[p.name]>0?`+${res.totals[p.name]}`:res.totals?.[p.name]||0} pts</span></div>)}<div className="p-4 text-">FINAL</div></div>
-              </div></div>
+              <div className="p-5 flex justify-between items-center border-b border-white/10 flex-wrap gap-4 bg-black/20"><div><div className="font-black text-">{course.name} • Table Fixed - No Formatting Loss After 3rd Player</div><div className="text- opacity-60 mt-1">Using table layout instead of grid so 3rd player keeps background • Order Joe → Brad → Graham</div></div><button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveTab("history"); }} className="px-7 py-3 bg-fuchsia-500 text-white rounded-full font-black text-xs">End Round → Save</button></div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse" style={{minWidth: `${240 + players.length*220}px`}}>
+                  <thead>
+                    <tr className="bg-black/30 text- opacity-60 font-black tracking-widest">
+                      <th className="p-3 text-left w-">HOLE</th>
+                      <th className="p-3 text-left w-">PAR</th>
+                      {players.map(p=><th key={`hdr-${p.name}`} className="p-3 text-left min-w-">{p.name.toUpperCase()} H{p.hcp} • G:{res.gross?.[p.name]||0} • P:{res.totals?.[p.name]||0}</th>)}
+                      <th className="p-3 text-left w-">POT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({length:18},(_,h)=>{
+                      const par=course.pars[h]||4; const isLast=h===17;
+                      return (
+                        <tr key={`row-${h}`} className={`border-t border-white/10 hover:bg-white/[0.02] ${isLast?"bg-amber-400/10":""}`}>
+                          <td className={`p-3 text-xs font-black ${isLast?"text-amber-200":""}`}>{h+1}{isLast?"★":""}</td>
+                          <td className="p-3"><span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></td>
+                          {players.map(p=>{
+                            const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0;
+                            const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2;
+                            return (
+                              <td key={`${p.name}-${h}`} className={`p-2 ${isEagle?"bg-amber-500/15":isBirdie?"bg-emerald-500/15":isPar?"bg-white/[0.03]":""}`}>
+                                <div className="flex items-center gap-2">
+                                  <input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-10 rounded-xl bg-black/60 border-2 text-center font-black text- ${isEagle?"border-amber-400":isBirdie?"border-emerald-400":isPar?"border-white/30":"border-white/15"}`} placeholder="-" />
+                                  <div className="flex flex-col gap-1">
+                                    {isPar&&<span className="text- px-2 py-1 rounded-full bg-white/15 font-bold">PAR</span>}
+                                    {isBirdie&&<span className="text- px-2 py-1 rounded-full bg-emerald-400 text-black font-black">BIRDIE +2</span>}
+                                    {isEagle&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">EAGLE +5</span>}
+                                    <span className={`text- px-2 py-1 rounded-full font-mono font-bold ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/10 opacity-60"}`}>{hp!==0?`${hp>0?`+${hp}`:hp} (${run>0?`+${run}`:run})`:`(${run})`}</span>
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="p-3 text- font-mono opacity-60">{isLast&&res.tieBreak?"TB":res.carry>0&&!isLast?`+${res.carry}`:""}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-black/50 border-t-2 border-fuchsia-400/30 font-black">
+                      <td className="p-4 text-">TOTAL</td><td className="p-4 text-">Par {course.pars.reduce((a,b)=>a+b,0)}</td>
+                      {players.map(p=><td key={`tot-${p.name}`} className="p-4"><div className="text- leading-none">{res.gross?.[p.name]||0} gross</div><div className="text- mt-1">{res.totals?.[p.name]>0?`+${res.totals[p.name]}`:res.totals?.[p.name]||0} pts</div></td>)}
+                      <td className="p-4 text-">FINAL</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {res.tieBreak && <div className="p-4 bg-amber-400 text-black font-bold text-xs text-center">🏆 Last Hole Tie → {res.tieBreak.reason} → {res.tieBreak.winner} wins pot</div>}
             </div>
           </>
         )}
@@ -151,7 +191,7 @@ export default function App(){
         {activeTab==="history" && (
           <div className="rounded- bg-[#121828] border border-white/10 p-5">
             <div className="font-black text- mb-4">History • {rounds.length} rounds</div>
-            {rounds.length===0? <div className="py-16 text-center opacity-40">No rounds yet</div> : rounds.map(r=>(<div key={r.id} className="p-4 rounded-xl bg-black/30 border border-white/10 mb-3 flex justify-between items-center"><div><div className="text-xs font-mono opacity-60">{r.dateStr||new Date(r.id).toLocaleString()} • {r.course?.short||r.course?.name} {r.tieBreak?`• TB: ${r.tieBreak.winner} (${r.tieBreak.reason})`:""}</div><div className="text-sm mt-2 flex gap-2 flex-wrap">{Object.entries(r.totals||{}).map(([n,pts])=><span key={n} className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-xs"><span className="font-bold">{n}</span> {pts>0?`+${pts}`:pts} pts / {r.gross?.[n]||0} gross</span>)}</div></div><button onClick={async()=>{ const u=rounds.filter(x=>x.id!==r.id); setRounds(u); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }catch{} }} className="px-4 py-2 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button></div>))}
+            {rounds.length===0? <div className="py-16 text-center opacity-40">No rounds yet - Nashboro will show here after fix</div> : rounds.map(r=>(<div key={r.id} className="p-4 rounded-xl bg-black/30 border border-white/10 mb-3 flex justify-between items-center"><div><div className="text-xs font-mono opacity-60">{r.dateStr||new Date(r.id).toLocaleString()} • {r.course?.short||r.course?.name} {r.tieBreak?`• TB: ${r.tieBreak.winner} (${r.tieBreak.reason})`:""}</div><div className="text-sm mt-2 flex gap-2 flex-wrap">{Object.entries(r.totals||{}).map(([n,pts])=><span key={n} className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-xs"><span className="font-bold">{n}</span> {pts>0?`+${pts}`:pts} pts / {r.gross?.[n]||0} gross</span>)}</div></div><button onClick={async()=>{ const u=rounds.filter(x=>x.id!==r.id); setRounds(u); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }catch{} }} className="px-4 py-2 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button></div>))}
           </div>
         )}
 
