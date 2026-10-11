@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-const LOGO = "/logo.jpg";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+const DEFAULT_LOGO = "/logo.jpg";
 
 const COURSES = [
   { name: "Nashboro Golf Club", short: "NASH", pars: [4,4,3,5,4,4,5,3,4,5,4,4,3,4,3,4,5,4], si: [2,8,16,6,12,4,18,14,10,7,3,5,17,9,15,1,13,11], area: "Nashville" },
@@ -19,9 +19,9 @@ const COURSES = [
 ];
 
 function getStats(arr, pars){
-  let parsC=0,birdies=0,eagles=0,doubleBogeys=0;
-  (arr||[]).forEach((sc,h)=>{ if(sc===""||sc==null) return; const d=sc-(pars[h]||4); if(d===0) parsC++; else if(d===-1) birdies++; else if(d<=-2) eagles++; else if(d>=2) doubleBogeys++; });
-  return {parsC,birdies,eagles,doubleBogeys};
+  let parsC=0,birdies=0,eagles=0,bogeys=0,doubleBogeys=0;
+  (arr||[]).forEach((sc,h)=>{ if(sc===""||sc==null) return; const d=sc-(pars[h]||4); if(d===0) parsC++; else if(d===-1) birdies++; else if(d<=-2) eagles++; else if(d===1) bogeys++; else if(d>=2) doubleBogeys++; });
+  return {parsC,birdies,eagles,bogeys,doubleBogeys};
 }
 
 function calc(players, pars, sis){
@@ -68,6 +68,11 @@ function calc(players, pars, sis){
 }
 
 export default function App(){
+  const [logoSrc,setLogoSrc]=useState(()=>{
+    try{ return localStorage.getItem("darkscore_logo")||DEFAULT_LOGO; }catch{ return DEFAULT_LOGO; }
+  });
+  const fileInputRef=useRef(null);
+
   const [customCourses,setCustomCourses]=useState(()=>{ try{ const s=localStorage.getItem("darkscore_customCourses"); const p=s?JSON.parse(s):[]; return Array.isArray(p)?p.filter(c=>c&&c.pars&&c.pars.length===18):[]; }catch{ return []; } });
   const allCourses=useMemo(()=>[...COURSES,...customCourses],[customCourses]);
   const [cIdx,setCIdx]=useState(0); const course=allCourses[cIdx]||COURSES[0];
@@ -88,6 +93,24 @@ export default function App(){
     try{ const r=await fetch("/api/standings"); if(r.ok){ const d=await r.json(); const arr=Array.isArray(d)?d:(Array.isArray(d.rounds)?d.rounds:[]); setRounds(arr); } }catch{}
   })();},[]);
 
+  function handleLogoClick(){ fileInputRef.current?.click(); }
+  function handleLogoUpload(e){
+    const file=e.target.files?.[0]; if(!file) return;
+    if(file.size>5*1024*1024){ alert("File too big - keep under 5MB"); return; }
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const dataUrl=ev.target.result;
+      setLogoSrc(dataUrl);
+      try{ localStorage.setItem("darkscore_logo",dataUrl); }catch{ alert("Saved but browser storage full - use smaller PNG"); }
+    };
+    reader.readAsDataURL(file);
+    e.target.value="";
+  }
+  function resetLogo(){
+    setLogoSrc(DEFAULT_LOGO);
+    try{ localStorage.removeItem("darkscore_logo"); }catch{}
+  }
+
   function upd(name,h,raw){ const clean=raw.replace(/[^0-9]/g,""); const num=clean===""?"":parseInt(clean,10); setPlayers(prev=>prev.map(p=>{ if(p.name!==name) return p; const ns=[...p.scores]; ns[h]=num; return {...p,scores:ns}; })); }
   function addPlayer(){ const n=newName.trim(); if(!n||players.length>=4||players.find(p=>p.name===n)) return; setPlayers(prev=>[...prev,{name:n,hcp:parseInt(newHcp)||0,scores:Array(18).fill("")}]); setNewName(""); }
   function removePlayer(name){ if(players.length<=2) return; setPlayers(prev=>prev.filter(p=>p.name!==name)); }
@@ -97,11 +120,24 @@ export default function App(){
     <div className="min-h-screen bg-[#05080F] text-white">
       <div className="sticky top-0 z-50 bg-[#0A0E1A]/90 backdrop-blur-xl border-b border-white/10 p-4">
         <div className="max-w- mx-auto flex justify-between items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-5">
-            <img src={LOGO} alt="" className="w-20 h-20 md:w-28 md:h-28 rounded- object-contain bg-white/[0.06] border-2 border-fuchsia-400/60 p-2.5 shadow-[0_0_35px_rgba(217,70,239,0.45)]" onError={e=>e.target.style.display="none"} />
+          <div className="flex items-center gap-6">
+            {/* CLICKABLE BIGGER TRANSPARENT PHOTO */}
+            <div className="relative group cursor-pointer" onClick={handleLogoClick}>
+              <img src={logoSrc} alt="Galactic Skins" className="w-28 h-28 md:w-40 md:h-40 rounded- object-cover bg-transparent border-2 border-fuchsia-400/50 shadow-[0_0_50px_rgba(217,70,239,0.55)] transition-transform group-hover:scale-[1.03]" style={{backgroundColor:'transparent'}} onError={e=>e.target.src=DEFAULT_LOGO} />
+              <div className="absolute inset-0 rounded- bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text- font-black tracking-widest">
+                <div className="text-">📸</div>
+                <div>CLICK TO CHANGE</div>
+                <div className="text- opacity-70 mt-1">PNG transparent</div>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
+            </div>
             <div>
-              <div className="font-black text-">Galactic Skins • NASHBORO FORMATTING FIX</div>
-              <div className="text- opacity-60 font-mono">{course.name} • Par {course.pars.reduce((a,b)=>a+b,0)} • Order: Joe → Brad → Graham • Table layout fixed for 3rd player</div>
+              <div className="font-black text- leading-tight">Galactic Skins<br/><span className="text- opacity-60 font-mono">Click photo to upload transparent PNG • Bigger photo</span></div>
+              <div className="text- opacity-60 font-mono mt-1">{course.name} • Par {course.pars.reduce((a,b)=>a+b,0)} • Joe → Brad → Graham • Table fixed for all courses • Hole 8 fixed</div>
+              <div className="flex gap-2 mt-2">
+                <button onClick={handleLogoClick} className="text- px-3 py-1 rounded-full bg-fuchsia-500/20 border border-fuchsia-400/30 font-bold hover:bg-fuchsia-500/30">📸 Change Photo</button>
+                {logoSrc!==DEFAULT_LOGO && <button onClick={resetLogo} className="text- px-3 py-1 rounded-full bg-white/10 border border-white/10 hover:bg-white/20">Reset</button>}
+              </div>
               {res.tieBreak && <div className="mt-2 text- px-3.5 py-1.5 rounded-full bg-amber-400 text-black font-black">🏆 {res.tieBreak.winner} - {res.tieBreak.reason}</div>}
             </div>
           </div>
@@ -118,12 +154,12 @@ export default function App(){
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {players.map(p=>{
-                const st=statsMap[p.name]||{parsC:0,birdies:0,eagles:0}; const g=res.gross?.[p.name]||0; const pts=res.totals?.[p.name]||0;
+                const st=statsMap[p.name]||{parsC:0,birdies:0,eagles:0,bogeys:0,doubleBogeys:0}; const g=res.gross?.[p.name]||0; const pts=res.totals?.[p.name]||0;
                 return (
                   <div key={p.name} className="rounded- bg-[#121828] border border-white/10 p-5">
                     <div className="flex justify-between items-center"><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black text-xs">{p.name[0]}</div><span className="font-bold">{p.name}</span>{p.name==="Joe"&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">SI 1&2</span>}</div><button onClick={()=>removePlayer(p.name)} className="w-8 h-8 rounded-full bg-white/10 text-xs">✕</button></div>
                     <div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded- bg-black/40 border border-white/10 p-3 text-center"><div className="text- opacity-50">GROSS</div><div className="text- font-black">{g}</div></div><div className={`rounded- border p-3 text-center ${pts>0?"bg-fuchsia-500 text-black":"bg-black/40 border-white/10"}`}><div className="text- opacity-70">RUNNING PTS</div><div className="text- font-black">{pts>0?`+${pts}`:pts}</div></div></div>
-                    <div className="mt-4 flex items-center gap-2"><span className="text- opacity-40">HCP</span><input type="number" value={p.hcp} onChange={e=>updateHcp(p.name,e.target.value)} className="w-16 h-9 rounded-xl bg-black/50 border border-white/10 text-center font-bold text-sm" /><div className="ml-auto flex gap-1"><span className="text- px-2 py-1 rounded-full bg-white/10">{st.parsC} PAR</span><span className="text- px-2 py-1 rounded-full bg-emerald-400/20 text-emerald-200 font-black">{st.birdies} BIRDIE</span></div></div>
+                    <div className="mt-3 flex flex-wrap gap-1.5"><span className="text- px-2.5 py-1.5 rounded-full bg-white/10 font-bold">{st.parsC} PAR</span><span className="text- px-2.5 py-1.5 rounded-full bg-emerald-400/20 text-emerald-200 font-black">{st.birdies} BIRDIE</span><span className="text- px-2.5 py-1.5 rounded-full bg-amber-400/20 text-amber-200 font-black">{st.eagles} EAGLE</span><span className="text- px-2.5 py-1.5 rounded-full bg-orange-400/15 text-orange-200">{st.bogeys} BOGEY</span><span className="text- px-2.5 py-1.5 rounded-full bg-red-500/15 text-red-200">{st.doubleBogeys} DBL+</span></div>
                   </div>
                 );
               })}
@@ -135,69 +171,52 @@ export default function App(){
             </div>
 
             <div className="rounded- bg-[#121828] border border-white/10 overflow-hidden">
-              <div className="p-5 flex justify-between items-center border-b border-white/10 flex-wrap gap-4 bg-black/20"><div><div className="font-black text-">{course.name} • Table Fixed - No Formatting Loss After 3rd Player</div><div className="text- opacity-60 mt-1">Using table layout instead of grid so 3rd player keeps background • Order Joe → Brad → Graham</div></div><button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveTab("history"); }} className="px-7 py-3 bg-fuchsia-500 text-white rounded-full font-black text-xs">End Round → Save</button></div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse" style={{minWidth: `${240 + players.length*220}px`}}>
-                  <thead>
-                    <tr className="bg-black/30 text- opacity-60 font-black tracking-widest">
-                      <th className="p-3 text-left w-">HOLE</th>
-                      <th className="p-3 text-left w-">PAR</th>
-                      {players.map(p=><th key={`hdr-${p.name}`} className="p-3 text-left min-w-">{p.name.toUpperCase()} H{p.hcp} • G:{res.gross?.[p.name]||0} • P:{res.totals?.[p.name]||0}</th>)}
-                      <th className="p-3 text-left w-">POT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({length:18},(_,h)=>{
-                      const par=course.pars[h]||4; const isLast=h===17;
-                      return (
-                        <tr key={`row-${h}`} className={`border-t border-white/10 hover:bg-white/[0.02] ${isLast?"bg-amber-400/10":""}`}>
-                          <td className={`p-3 text-xs font-black ${isLast?"text-amber-200":""}`}>{h+1}{isLast?"★":""}</td>
-                          <td className="p-3"><span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></td>
-                          {players.map(p=>{
-                            const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0;
-                            const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2;
-                            return (
-                              <td key={`${p.name}-${h}`} className={`p-2 ${isEagle?"bg-amber-500/15":isBirdie?"bg-emerald-500/15":isPar?"bg-white/[0.03]":""}`}>
-                                <div className="flex items-center gap-2">
-                                  <input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-10 rounded-xl bg-black/60 border-2 text-center font-black text- ${isEagle?"border-amber-400":isBirdie?"border-emerald-400":isPar?"border-white/30":"border-white/15"}`} placeholder="-" />
-                                  <div className="flex flex-col gap-1">
-                                    {isPar&&<span className="text- px-2 py-1 rounded-full bg-white/15 font-bold">PAR</span>}
-                                    {isBirdie&&<span className="text- px-2 py-1 rounded-full bg-emerald-400 text-black font-black">BIRDIE +2</span>}
-                                    {isEagle&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">EAGLE +5</span>}
-                                    <span className={`text- px-2 py-1 rounded-full font-mono font-bold ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/10 opacity-60"}`}>{hp!==0?`${hp>0?`+${hp}`:hp} (${run>0?`+${run}`:run})`:`(${run})`}</span>
-                                  </div>
-                                </div>
-                              </td>
-                            );
-                          })}
-                          <td className="p-3 text- font-mono opacity-60">{isLast&&res.tieBreak?"TB":res.carry>0&&!isLast?`+${res.carry}`:""}</td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="bg-black/50 border-t-2 border-fuchsia-400/30 font-black">
-                      <td className="p-4 text-">TOTAL</td><td className="p-4 text-">Par {course.pars.reduce((a,b)=>a+b,0)}</td>
-                      {players.map(p=><td key={`tot-${p.name}`} className="p-4"><div className="text- leading-none">{res.gross?.[p.name]||0} gross</div><div className="text- mt-1">{res.totals?.[p.name]>0?`+${res.totals[p.name]}`:res.totals?.[p.name]||0} pts</div></td>)}
-                      <td className="p-4 text-">FINAL</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              {res.tieBreak && <div className="p-4 bg-amber-400 text-black font-bold text-xs text-center">🏆 Last Hole Tie → {res.tieBreak.reason} → {res.tieBreak.winner} wins pot</div>}
+              <div className="p-5 flex justify-between items-center border-b border-white/10 flex-wrap gap-4 bg-black/20"><div><div className="font-black text-">{course.name} • Click photo top-left to change • Order Joe→Brad→Graham • All courses table fixed</div></div><button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveTab("history"); }} className="px-7 py-3 bg-fuchsia-500 text-white rounded-full font-black text-xs">End Round → Save</button></div>
+              <div className="overflow-x-auto"><table className="w-full border-collapse" style={{minWidth: `${240 + players.length*220}px`}}><thead><tr className="bg-black/30 text- opacity-60 font-black tracking-widest"><th className="p-3 text-left w-">HOLE</th><th className="p-3 text-left w-">PAR</th>{players.map(p=><th key={`hdr-${p.name}`} className="p-3 text-left min-w-">{p.name} H{p.hcp} G:{res.gross?.[p.name]||0} P:{res.totals?.[p.name]||0}</th>)}<th className="p-3 text-left w-">POT</th></tr></thead><tbody>{Array.from({length:18},(_,h)=>{ const par=course.pars[h]||4; const isLast=h===17; return (<tr key={`row-${h}`} className={`border-t border-white/10 hover:bg-white/[0.02] ${isLast?"bg-amber-400/10":""}`}><td className={`p-3 text-xs font-black ${isLast?"text-amber-200":""}`}>{h+1}{isLast?"★":""}</td><td className="p-3"><span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{par}</span></td>{players.map(p=>{ const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0; const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2; return (<td key={`${p.name}-${h}`} className={`p-2 ${isEagle?"bg-amber-500/15":isBirdie?"bg-emerald-500/15":isPar?"bg-white/[0.03]":""}`}><div className="flex items-center gap-2"><input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-10 rounded-xl bg-black/60 border-2 text-center font-black text- ${isEagle?"border-amber-400":isBirdie?"border-emerald-400":isPar?"border-white/30":"border-white/15"}`} placeholder="-" /><div className="flex flex-col gap-1">{isPar&&<span className="text- px-2 py-1 rounded-full bg-white/15 font-bold">PAR</span>}{isBirdie&&<span className="text- px-2 py-1 rounded-full bg-emerald-400 text-black font-black">BIRDIE +2</span>}{isEagle&&<span className="text- px-2 py-1 rounded-full bg-amber-400 text-black font-black">EAGLE +5</span>}<span className={`text- px-2 py-1 rounded-full font-mono font-bold ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/10 opacity-60"}`}>{hp!==0?`${hp>0?`+${hp}`:hp} (${run>0?`+${run}`:run})`:`(${run})`}</span></div></div></td>); })}<td className="p-3 text- font-mono opacity-60">{isLast&&res.tieBreak?"TB":res.carry>0&&!isLast?`+${res.carry}`:""}</td></tr>); })}<tr className="bg-black/50 border-t-2 border-fuchsia-400/30 font-black"><td className="p-4 text-">TOTAL</td><td className="p-4 text-">Par {course.pars.reduce((a,b)=>a+b,0)}</td>{players.map(p=><td key={`tot-${p.name}`} className="p-4"><div className="text- leading-none">{res.gross?.[p.name]||0} gross</div><div className="text- mt-1">{res.totals?.[p.name]>0?`+${res.totals[p.name]}`:res.totals?.[p.name]||0} pts</div></td>)}<td className="p-4 text-">FINAL</td></tr></tbody></table></div>
             </div>
           </>
         )}
 
         {activeTab==="history" && (
           <div className="rounded- bg-[#121828] border border-white/10 p-5">
-            <div className="font-black text- mb-4">History • {rounds.length} rounds</div>
-            {rounds.length===0? <div className="py-16 text-center opacity-40">No rounds yet - Nashboro will show here after fix</div> : rounds.map(r=>(<div key={r.id} className="p-4 rounded-xl bg-black/30 border border-white/10 mb-3 flex justify-between items-center"><div><div className="text-xs font-mono opacity-60">{r.dateStr||new Date(r.id).toLocaleString()} • {r.course?.short||r.course?.name} {r.tieBreak?`• TB: ${r.tieBreak.winner} (${r.tieBreak.reason})`:""}</div><div className="text-sm mt-2 flex gap-2 flex-wrap">{Object.entries(r.totals||{}).map(([n,pts])=><span key={n} className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-xs"><span className="font-bold">{n}</span> {pts>0?`+${pts}`:pts} pts / {r.gross?.[n]||0} gross</span>)}</div></div><button onClick={async()=>{ const u=rounds.filter(x=>x.id!==r.id); setRounds(u); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }catch{} }} className="px-4 py-2 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button></div>))}
+            <div className="font-black text- mb-1">History • {rounds.length} rounds • Full Stats</div>
+            {rounds.length===0? <div className="py-16 text-center opacity-40">No rounds yet</div> :
+              rounds.map(r=>{
+                const coursePars=r.course?.pars||COURSES.find(c=>c.short===r.course?.short)?.pars||Array(18).fill(4);
+                const dateStr=r.dateStr||new Date(r.id).toLocaleString();
+                const short=r.course?.short||r.course?.name||"Unknown";
+                const totals=r.totals||{}; const gross=r.gross||{}; const scoresObj=r.scores||{}; const orderNames=r.players?.map(p=>p.name)||Object.keys(scoresObj).length?Object.keys(scoresObj):["Joe","Brad","Graham"];
+                return (
+                  <div key={r.id} className="p-4 rounded- bg-black/30 border border-white/10 mb-4">
+                    <div className="flex justify-between items-start"><div className="text- font-mono opacity-80">{dateStr} • <span className="font-black text-white">{short}</span></div><button onClick={async()=>{ const u=rounds.filter(x=>x.id!==r.id); setRounds(u); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }catch{} }} className="px-4 py-2 rounded-full bg-red-500/20 border border-red-400/30 text-">Delete</button></div>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {orderNames.map(name=>{
+                        const arr=scoresObj[name]||[]; const st=getStats(arr, coursePars);
+                        const pts=totals[name]??0; const g=gross[name]?? (arr||[]).reduce((a,v)=>a+(parseInt(v)||0),0);
+                        return (
+                          <div key={name} className="rounded-xl bg-black/30 border border-white/10 p-3">
+                            <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black text-">{name[0]}</div><span className="font-bold text-">{name}</span></div><div className="text-right"><div className="text- opacity-60">Gross / Pts</div><div className="text- font-black">{g} / {pts>0?`+${pts}`:pts}</div></div></div>
+                            <div className="mt-3 grid grid-cols-5 gap-1.5">
+                              <div className="rounded-lg bg-white/10 p-2 text-center"><div className="text- opacity-50">PAR</div><div className="text- font-black mt-1">{st.parsC}</div></div>
+                              <div className="rounded-lg bg-emerald-400/15 border border-emerald-400/30 p-2 text-center"><div className="text- text-emerald-200">BIRDIE</div><div className="text- font-black mt-1 text-emerald-200">{st.birdies}</div></div>
+                              <div className="rounded-lg bg-amber-400/15 border border-amber-400/30 p-2 text-center"><div className="text- text-amber-200">EAGLE</div><div className="text- font-black mt-1 text-amber-200">{st.eagles}</div></div>
+                              <div className="rounded-lg bg-orange-400/10 border border-orange-400/20 p-2 text-center"><div className="text-">BOGEY</div><div className="text- font-black mt-1">{st.bogeys}</div></div>
+                              <div className="rounded-lg bg-red-500/10 border border-red-400/20 p-2 text-center"><div className="text-">DBL+</div><div className="text- font-black mt-1">{st.doubleBogeys}</div></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            }
           </div>
         )}
 
         {activeTab==="courses" && (
           <div className="rounded- bg-[#121828] border border-white/10 p-5">
-            <div className="font-black text- mb-4">Courses • {allCourses.length} • Order Joe Brad Graham • Edit Works</div>
+            <div className="font-black text- mb-4">Courses • {allCourses.length}</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {allCourses.map((c,idx)=><div key={c.short+idx} className={`rounded-xl border p-4 ${idx===cIdx?"bg-white text-black":"bg-black/30 border-white/10"}`}><div className="font-bold text-">{c.name}</div><div className="text- opacity-60">Par {c.pars.reduce((a,b)=>a+b,0)}</div><div className="mt-3 flex gap-2"><button onClick={()=>{ setEditingIdx(idx); setEditForm({name:c.name,short:c.short,parsStr:c.pars.join(","),siStr:c.si.join(","),area:c.area}); setShowEdit(true); }} className="flex-1 h-8 rounded-full bg-white/10 border border-white/20 text-xs font-bold">✏️ Edit</button><button onClick={()=>setCIdx(idx)} className="flex-1 h-8 rounded-full bg-white text-black font-black text-xs">Use</button></div></div>)}
             </div>
