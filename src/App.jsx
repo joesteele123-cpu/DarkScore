@@ -143,7 +143,7 @@ export default function App(){
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-black text- md:text-">Galactic Skins • SETUP TAB ADDED</div>
+            <div className="font-black text- md:text-">Galactic Skins </div>
             <div className="mt-2 flex items-center gap-2">
               <select value={cIdx} onChange={e=>setCIdx(parseInt(e.target.value))} className="w-full max-w- h-9 md:h-10 rounded-full bg-black/60 border border-white/20 px-3 md:px-4 text- md:text-sm font-bold">
                 {allCourses.map((c,idx)=><option key={c.short+idx} value={idx}>{c.short} - {c.name} {idx>=COURSES.length?"(Custom)":""} Par {c.pars.reduce((a,b)=>a+b,0)}</option>)}
