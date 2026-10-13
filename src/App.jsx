@@ -171,7 +171,7 @@ export default function App(){
         {activeTab==="live" && (
           <>
             <div className={`${showPlayers?"block":"hidden md:block"} rounded- bg-[#121828] border border-fuchsia-500/20 p-4 space-y-3`}>
-              <div className="font-black text- tracking-widest">PLAYERS • ORDER Joe→Brad→Graham • ADD / REMOVE / HCP</div>
+              <div className="font-black text- tracking-widest">PLAYERS • ADD / REMOVE / HCP</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {players.map(p=>{
                   const g=res.gross?.[p.name]||0; const pts=res.totals?.[p.name]||0;
