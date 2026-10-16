@@ -38,7 +38,7 @@ const GAMBLE_FORMATS = [
   { id: "banker", name: "Banker / Seve — 3-4P", minPlayers: 3 },
 ];
 const GAMBLE_FORMATS_DESC = {
-  skins_carry: "Low net wins skin, ties carry, birdie +2 eagle +5 vs field",
+  skins_carry: "Low net wins skin, ties carry, birdie +2 eagle +5 vs field, 18 tie-break pars>birdies",
   skins_no_carry: "Low net wins skin, ties = no skin, birdie +2 eagle +5 still",
   nassau: "Every hole vs every opponent: win hole = +1 vs that opponent",
   wolf: "4P: Rotating Wolf — Lone Wolf win +6 vs -2, team win +2 each",
@@ -128,7 +128,6 @@ export default function App(){
   function updateHcp(name,delta){ setPlayers(prev=>prev.map(p=>{ if(p.name!==name) return p; let nh=(parseInt(p.hcp)||0)+delta; nh=Math.max(0,Math.min(36,nh)); return {...p,hcp:nh}; })); }
   function updatePlayerName(oldName,newVal){ if(!newVal.trim()) return; if(players.find(p=>p.name===newVal.trim()&&p.name!==oldName)) return; setPlayers(prev=>prev.map(p=>p.name===oldName?{...p,name:newVal.trim()}:p)); }
   function resetPlayers(){ if(!confirm("Reset to defaults?")) return; setPlayers(DEFAULT_PLAYERS.map(p=>({...p,scores:Array(18).fill("")}))); }
-
   function openEditCourse(idx){ const c=allCourses[idx]; setEditingIdx(idx); setEditForm({name:c.name,short:c.short,parsStr:c.pars.join(","),siStr:c.si.join(","),area:c.area}); setShowEdit(true); }
   function openNewCourse(){ setEditingIdx(null); setEditForm({name:"New Course",short:"NEW",parsStr:"4,4,3,5,4,4,5,3,4,5,4,4,3,4,3,4,5,4",siStr:"2,8,16,6,12,4,18,14,10,7,3,5,17,9,15,1,13,11",area:"Nashville"}); setShowEdit(true); }
   function saveCourse(){ const parseNums = (str) => str.split(/[\n,\s;]+/).map(s=>s.trim()).filter(Boolean).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=1&&n<=18); const parsePars = (str) => str.split(/[\n,\s;]+/).map(s=>s.trim()).filter(Boolean).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=3&&n<=6); const pars=parsePars(editForm.parsStr); const si=parseNums(editForm.siStr); if(pars.length!==18||si.length!==18){ alert("Need 18 pars and 18 SI"); return; } const newCourse = { name: editForm.name.trim()||"Unnamed", short: editForm.short.trim().toUpperCase()||"NEW", pars, si, area: editForm.area.trim()||"Custom" }; if(editingIdx===null){ setCustomCourses(prev=>[...prev, newCourse]); setCIdx(allCourses.length); } else { if(editingIdx < BASE_COURSES.length){ setEditedBuiltIns(prev=>({...prev, [editingIdx]: newCourse})); } else { const customIdx = editingIdx - BASE_COURSES.length; setCustomCourses(prev=>{ const copy=[...prev]; copy[customIdx]=newCourse; return copy; }); } } setShowEdit(false); }
@@ -157,7 +156,7 @@ export default function App(){
       <div className="sticky top-0 z-50 bg-[#0A0E1A]/95 backdrop-blur-xl border-b border-white/10">
         <div className="max-w- mx-auto p-3 md:p-4 flex items-center gap-3 md:gap-4">
           <div className="relative group shrink-0 cursor-pointer" onClick={handleLogoClick}>
-            <img src={logoSrc} alt="" className="w-16 h-16 md:w-40 md:h-40 rounded- md:rounded- object-cover bg-transparent border-2 border-fuchsia-400/50" onError={e=>e.target.src=DEFAULT_LOGO} />
+            <img src={logoSrc} alt="" className="w-16 h-16 md:w-40 md:h-40 rounded- md:rounded- object-cover bg-transparent border-2 border-white/20" onError={e=>e.target.src=DEFAULT_LOGO} />
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
           </div>
           <div className="flex-1 min-w-0">
@@ -166,22 +165,39 @@ export default function App(){
               <select value={cIdx} onChange={e=>setCIdx(parseInt(e.target.value))} className="h-9 rounded-full bg-white text-black border-2 border-white px-3 text- font-black max-w-">
                 {allCourses.map((c,idx)=><option key={(c.short||c.name)+idx} value={idx}>{c.short} Par {c.pars.reduce((a,b)=>a+b,0)}</option>)}
               </select>
-              <select value={settings.gameFormat} onChange={e=>setSettings(s=>({...s, gameFormat:e.target.value}))} className="h-9 rounded-full bg-white text-black border-2 border-fuchsia-500 px-3 text- font-black max-w-">
+              <select value={settings.gameFormat} onChange={e=>setSettings(s=>({...s, gameFormat:e.target.value}))} className="h-9 rounded-full bg-white text-black border-2 border-white px-3 text- font-black max-w-">
                 {GAMBLE_FORMATS.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
               <button onClick={()=>setShowFormatInfo(!showFormatInfo)} className="shrink-0 w-8 h-8 rounded-full bg-white text-black border-2 border-white font-black">?</button>
             </div>
-            {showFormatInfo&&<div className="mt-2 p-3 rounded-xl bg-white border-2 border-black text- text-black"><div className="font-black">{currentFormat.name} {players.length < currentFormat.minPlayers? `— NEEDS ${currentFormat.minPlayers} PLAYERS` : ""}</div><div className="mt-1 text-black/70">{GAMBLE_FORMATS_DESC[currentFormat.id]}</div></div>}
+            {showFormatInfo&&<div className="mt-2 p-3 rounded-xl bg-white border-2 border-black text- text-black"><div className="font-black">{currentFormat.name}</div><div className="mt-1 text-black/70">{GAMBLE_FORMATS_DESC[currentFormat.id]}</div></div>}
+          </div>
+          {/* RESTORED TABS */}
+          <div className="hidden xl:flex rounded-full bg-white/[0.08] border border-white/20 p-1">
+            <button onClick={()=>setActiveTab("live")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="live"?"bg-white text-black":"text-white/70"}`}>Live</button>
+            <button onClick={()=>setActiveTab("players")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="players"?"bg-white text-black":"text-white/70"}`}>Players</button>
+            <button onClick={()=>setActiveTab("leaderboard")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="leaderboard"?"bg-white text-black":"text-white/70"}`}>Board</button>
+            <button onClick={()=>setActiveTab("courses")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="courses"?"bg-white text-black":"text-white/70"}`}>Courses</button>
+            <button onClick={()=>setActiveTab("setup")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="setup"?"bg-white text-black":"text-white/70"}`}>Setup</button>
+            <button onClick={()=>setActiveTab("history")} className={`px-3 py-2.5 rounded-full text-xs font-black ${activeTab==="history"?"bg-white text-black":"text-white/70"}`}>History</button>
           </div>
         </div>
-        <div className="px-3 md:px-4 py-1.5 bg-white border-t-2 border-fuchsia-400 text- font-black text-black flex justify-between"><span>{currentFormat.name} • $ {settings.dollarPerPoint}/pt • {course?.short} Par {course?.pars.reduce((a,b)=>a+b,0)} {res.teams&&res.teams[activeHole]? `• ${res.teams[activeHole].label}` : ""}</span><span className={players.length < currentFormat.minPlayers? "text-red-600" : "text-black/50"}>{players.length}/{currentFormat.minPlayers} players</span></div>
+        <div className="xl:hidden flex gap-1 px-3 pb-3 overflow-x-auto">
+          <button onClick={()=>setActiveTab("live")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="live"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>Live</button>
+          <button onClick={()=>setActiveTab("players")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="players"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>Players</button>
+          <button onClick={()=>setActiveTab("leaderboard")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="leaderboard"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>Board</button>
+          <button onClick={()=>setActiveTab("courses")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="courses"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>Courses</button>
+          <button onClick={()=>setActiveTab("setup")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="setup"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>Setup</button>
+          <button onClick={()=>setActiveTab("history")} className={`shrink-0 px-3 h-9 rounded-full text-xs font-black border ${activeTab==="history"?"bg-white text-black border-white":"bg-white/10 text-white border-white/20"}`}>History</button>
+        </div>
+        <div className="px-3 md:px-4 py-1.5 bg-white border-t border-white/20 text- font-black text-black flex justify-between"><span>{currentFormat.name} • $ {settings.dollarPerPoint}/pt • {course?.short} Par {course?.pars.reduce((a,b)=>a+b,0)} {res.teams&&res.teams[activeHole]? `• ${res.teams[activeHole].label}` : ""}</span><span className={players.length < currentFormat.minPlayers? "text-red-600" : "text-black/50"}>{players.length}/{currentFormat.minPlayers}</span></div>
       </div>
 
       <div className="max-w- mx-auto p-3 md:p-4 space-y-4">
         {res.error && (
-          <div className="rounded- bg-red-500 border-2 border-black p-4 flex justify-between items-center">
-            <div><div className="font-black text- text-white">⚠️ {res.error}</div><div className="text- text-white/80 mt-1">{currentFormat.name} needs {currentFormat.minPlayers} players</div></div>
-            <button onClick={()=>setActiveTab("players")} className="px-5 h-11 rounded-full bg-white text-black font-black text- border-2 border-black">+ Add Player</button>
+          <div className="rounded- bg-white text-black border-2 border-black p-4 flex justify-between items-center">
+            <div><div className="font-black text-">⚠️ {res.error}</div><div className="text- text-black/70 mt-1">{currentFormat.name} needs {currentFormat.minPlayers} players</div></div>
+            <button onClick={()=>setActiveTab("players")} className="px-5 h-11 rounded-full bg-black text-white font-black text-">+ Add Player</button>
           </div>
         )}
 
@@ -190,110 +206,90 @@ export default function App(){
             <div className="flex gap-1.5 overflow-x-auto pb-2">
               {Array.from({length:18},(_,h)=>{
                 const par=course?.pars[h]||4; const hasScore=players.some(p=>p.scores[h]!==""&&p.scores[h]!=null);
-                return (<button key={h} onClick={()=>setActiveHole(h)} className={`shrink-0 w-12 md:w-14 h-12 rounded-xl border-2 flex flex-col items-center justify-center ${activeHole===h?"bg-white text-black border-white scale-105":hasScore?"bg-fuchsia-500/20 border-fuchsia-400/40 text-fuchsia-200":"bg-black border-white/20 text-white"}`}><span className="text- font-black">H{h+1}</span><span className="text- opacity-70">P{par}</span></button>);
+                return (<button key={h} onClick={()=>setActiveHole(h)} className={`shrink-0 w-12 md:w-14 h-11 rounded-xl border flex flex-col items-center justify-center ${activeHole===h?"bg-white text-black border-white":hasScore?"bg-white/10 border-white/20 text-white":"bg-black border-white/10 text-white/50"}`}><span className="text- font-black">H{h+1}</span><span className="text- opacity-60">P{par}</span></button>);
               })}
             </div>
 
-            {/* DESKTOP - NAMES SHOW ALL THE TIME IN SCORING COLUMN */}
-            <div className="hidden md:block rounded- bg-[#121828] border border-white/20 overflow-hidden">
-              <div className="p-3 bg-white border-b-2 border-black flex justify-between items-center"><div className="font-black text- text-black">{course?.name} • {currentFormat.name} • $ {settings.dollarPerPoint}/pt • Par {course?.pars.reduce((a,b)=>a+b,0)} {res.teams&&res.teams[activeHole]? `• ${res.teams[activeHole].label}` : ""}</div></div>
+            <div className="hidden md:block rounded- bg-[#121828] border border-white/10 overflow-hidden">
               <div className="overflow-x-auto max-h- overflow-y-auto">
                 <table className="w-full border-collapse" style={{minWidth: `${300 + players.length*240}px`}}>
                   <thead className="sticky top-0 z-20">
                     <tr className="bg-[#0A0E1A] text- font-black tracking-widest">
-                      <th className="sticky left-0 z-30 bg-[#0A0E1A] p-3 text-left w- text-white border-r border-white/20">HOLE</th>
-                      <th className="sticky left- z-30 bg-[#0A0E1A] p-3 text-left w- text-white border-r border-white/20">PAR</th>
-                      <th className="sticky left- z-30 bg-[#0A0E1A] p-3 text-left w- text-white border-r border-white/20">SI</th>
-                      {players.map((p,idx)=>(
-                        <th key={p.name} className="p-0 text-left min-w- border-r border-white/10" style={{background: idx%2===0? "#1A1F2E" : "#121828"}}>
-                          <div className="p-3 bg-fuchsia-500 text-black flex justify-between items-center">
-                            <span className="font-black text- truncate">{p.name.toUpperCase()} • H{p.hcp}</span>
-                            <span className="text- font-mono bg-black text-fuchsia-300 px-2 py-1 rounded-full">G:{res.gross?.[p.name]||0} P:{(res.totals?.[p.name]||0).toFixed(1)}</span>
-                          </div>
-                          <div className="px-3 py-1.5 bg-black text- text-white/50 flex justify-between">
-                            <span>SCORING — {p.name}</span><span>${(res.totals?.[p.name]*settings.dollarPerPoint||0).toFixed(0)}</span>
+                      <th className="sticky left-0 z-30 bg-[#0A0E1A] p-3 text-left w- text-white/50 border-r border-white/10">HOLE</th>
+                      <th className="sticky left- z-30 bg-[#0A0E1A] p-3 text-left w- text-white/50 border-r border-white/10">PAR</th>
+                      <th className="sticky left- z-30 bg-[#0A0E1A] p-3 text-left w- text-white/50 border-r border-white/10">SI</th>
+                      {players.map((p)=>(
+                        <th key={p.name} className="p-0 text-left min-w- border-r border-white/5 bg-[#151A2A]">
+                          <div className="px-3 py-2.5 flex justify-between items-center border-b border-white/5">
+                            <span className="font-bold text- text-white/90 tracking-wide">{p.name} <span className="text- text-white/40">H{p.hcp}</span></span>
+                            <span className="text- font-mono text-white/40">G:{res.gross?.[p.name]||0} { (res.totals?.[p.name]||0)>0? `+${(res.totals?.[p.name]||0).toFixed(1)}` : (res.totals?.[p.name]||0).toFixed(1)}</span>
                           </div>
                         </th>
                       ))}
-                      <th className="p-3 text-left w- text-white bg-[#0A0E1A]">INFO</th>
+                      <th className="p-3 text-left w- text-white/30 bg-[#0A0E1A]">INFO</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Array.from({length:18},(_,h)=>{
                       const par=course?.pars[h]||4; const isLast=h===17; const isActive=h===activeHole;
                       return (
-                        <tr key={h} className={`border-t border-white/10 ${isLast?"bg-amber-400/10":""} ${isActive?"bg-white/[0.08]":""} hover:bg-white/[0.05]`}>
-                          <td className="sticky left-0 z-10 bg-[#121828] p-3 text-xs font-black text-white border-r border-white/20">{h+1}{isLast?"★":""}<div className="text- text-fuchsia-300 mt-1 leading-tight">{res.teams&&res.teams[h]? res.teams[h].label : ""}</div></td>
-                          <td className="sticky left- z-10 bg-[#121828] p-3 border-r border-white/20"><span className="w-7 h-7 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text- font-bold text-white">{par}</span></td>
-                          <td className="sticky left- z-10 bg-[#121828] p-3 text- text-white/70 border-r border-white/20">{course?.si[h]}</td>
-                          {players.map((p,idx)=>{
+                        <tr key={h} className={`border-t border-white/5 ${isLast?"bg-white/[0.03]":""} ${isActive?"bg-white/[0.04]":""}`}>
+                          <td className="sticky left-0 z-10 bg-[#121828] p-3 text- font-bold text-white/70 border-r border-white/10">{h+1}<div className="text- text-white/30 mt-1 leading-tight">{res.teams&&res.teams[h]? res.teams[h].label : ""}</div></td>
+                          <td className="sticky left- z-10 bg-[#121828] p-3 border-r border-white/10"><span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text- font-bold text-white/70">{par}</span></td>
+                          <td className="sticky left- z-10 bg-[#121828] p-3 text- text-white/40 border-r border-white/10">{course?.si[h]}</td>
+                          {players.map((p)=>{
                             const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0;
                             const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2; const getsStroke=p.hcp>=course.si[h];
                             return (
-                              <td key={`${p.name}-${h}`} className={`p-2 border-r border-white/10 ${isEagle?"bg-amber-500/20":isBirdie?"bg-emerald-500/20":isPar?"bg-white/[0.05]":""} ${idx%2===0?"":"bg-black/20"}`}>
-                                {/* NAME SHOWS ALL THE TIME IN SCORING COLUMN */}
+                              <td key={`${p.name}-${h}`} className={`p-2.5 border-r border-white/5 ${isEagle?"bg-amber-500/[0.08]":isBirdie?"bg-emerald-500/[0.08]":isPar?"bg-white/[0.02]":""}`}>
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text- font-black tracking-widest px-2 py-1 rounded-full bg-fuchsia-500 text-black">{p.name.toUpperCase()}</span>
+                                  <span className="text- font-bold tracking-wide text-white/60">{p.name}</span>
                                   <div className="flex gap-1">
-                                    {getsStroke&&<span className="text- px-1.5 py-0.5 rounded-full bg-blue-400 text-black font-black">+1 STROKE</span>}
-                                    {res.teams&&res.teams[h]?.teamA?.includes(p.name)&&<span className="text- px-1.5 py-0.5 rounded-full bg-blue-400 text-black font-black">TEAM A</span>}
-                                    {res.teams&&res.teams[h]?.teamB?.includes(p.name)&&<span className="text- px-1.5 py-0.5 rounded-full bg-red-400 text-black font-black">TEAM B</span>}
-                                    {res.teams&&res.teams[h]?.wolf===p.name&&<span className="text- px-1.5 py-0.5 rounded-full bg-amber-400 text-black font-black">WOLF</span>}
-                                    {res.teams&&res.teams[h]?.banker===p.name&&<span className="text- px-1.5 py-0.5 rounded-full bg-amber-400 text-black font-black">BANKER</span>}
+                                    {getsStroke&&<span className="text- px-1 py-0.5 rounded bg-white/10 text-white/50">+1</span>}
+                                    {res.teams&&res.teams[h]?.teamA?.includes(p.name)&&<span className="text- px-1 py-0.5 rounded bg-white/10 text-white/50">A</span>}
+                                    {res.teams&&res.teams[h]?.teamB?.includes(p.name)&&<span className="text- px-1 py-0.5 rounded bg-white/10 text-white/50">B</span>}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-10 rounded-xl border-2 text-center font-black text- bg-black text-white ${isEagle?"border-amber-400":isBirdie?"border-emerald-400":isPar?"border-white/40":"border-white/20"}`} placeholder="-" />
-                                  <div className="flex flex-col gap-1 flex-1">
-                                    <span className={`text- px-2.5 py-1 rounded-full font-mono font-bold text-center ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/15 text-white/80"}`}>{hp>0?`+${hp.toFixed(1)}`:`${hp.toFixed(1)}`} ({run>0?`+${run.toFixed(1)}`:run.toFixed(1)})</span>
-                                    <span className="text- text-white/40 text-center font-mono">HOLE {h+1} — {p.name}</span>
-                                  </div>
+                                  <input value={v} onChange={e=>upd(p.name,h,e.target.value)} className={`w- h-9 rounded-lg border text-center font-bold text- bg-[#0A0E1A] text-white/90 ${isEagle?"border-amber-400/30":isBirdie?"border-emerald-400/30":isPar?"border-white/20":"border-white/10"}`} placeholder="-" />
+                                  <span className={`text- px-2 py-1 rounded-full font-mono ${hp>0?"bg-white text-black":hp<0?"bg-white/20 text-white/60":"bg-white/5 text-white/30"}`}>{hp>0?`+${hp.toFixed(1)}`:`${hp.toFixed(1)}`}</span>
                                 </div>
+                                <div className="mt-1 text- text-white/20 font-mono text-right">{run>0?`+${run.toFixed(1)}`:run.toFixed(1)} total • H{h+1}</div>
                               </td>
                             );
                           })}
-                          <td className="p-3 text- font-mono text-white/60">{isLast&&res.tieBreak?`TB ${res.tieBreak.winner}`:res.carry>0&&!isLast?`+${res.carry}`:""}</td>
+                          <td className="p-3 text- font-mono text-white/20">{isLast&&res.tieBreak?`TB ${res.tieBreak.winner}`:res.carry>0&&!isLast?`+${res.carry}`:""}</td>
                         </tr>
                       );
                     })}
-                    <tr className="bg-black/60 border-t-2 border-fuchsia-400/30 font-black sticky bottom-0 z-10">
-                      <td className="sticky left-0 bg-black p-3 text- text-white border-r border-white/20">TOTAL</td>
-                      <td className="sticky left- bg-black p-3 text- text-white border-r border-white/20">Par {course?.pars.reduce((a,b)=>a+b,0)}</td>
-                      <td className="sticky left- bg-black p-3 border-r border-white/20"></td>
-                      {players.map(p=><td key={p.name} className="p-3 text-white bg-black border-r border-white/10"><div className="text- font-black">{p.name.toUpperCase()} TOTALS</div><div className="text- mt-1">{res.gross?.[p.name]||0} gross</div><div className="text- mt-1 text-fuchsia-300">{(res.totals?.[p.name]||0).toFixed(1)} pts • ${(res.totals?.[p.name]*settings.dollarPerPoint||0).toFixed(0)}</div></td>)}
-                      <td className="p-3 text- text-white bg-black">FINAL</td>
+                    <tr className="bg-[#0A0E1A] border-t border-white/10 font-bold sticky bottom-0 z-10">
+                      <td className="sticky left-0 bg-[#0A0E1A] p-3 text- text-white/40 border-r border-white/10">TOTAL</td>
+                      <td className="sticky left- bg-[#0A0E1A] p-3 text- text-white/40 border-r border-white/10">Par {course?.pars.reduce((a,b)=>a+b,0)}</td>
+                      <td className="sticky left- bg-[#0A0E1A] p-3 border-r border-white/10"></td>
+                      {players.map(p=><td key={p.name} className="p-3 bg-[#0A0E1A] border-r border-white/5"><div className="text- text-white/40">{p.name.toUpperCase()}</div><div className="text- text-white/90 mt-1">{res.gross?.[p.name]||0} gross • {(res.totals?.[p.name]||0).toFixed(1)} pts</div></td>)}
+                      <td className="p-3 text- text-white/20 bg-[#0A0E1A]">FINAL</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* MOBILE - NAMES SHOW ALL THE TIME */}
             <div className="md:hidden">
               {(()=>{
                 const h=activeHole; const par=course?.pars[h]||4;
                 return (
-                  <div className="rounded- bg-[#121828] border border-white/20 overflow-hidden">
-                    <div className="p-4 flex justify-between items-center bg-black/40">
-                      <div><div className="font-black text- text-white">Hole {h+1} • Par {par} • SI {course?.si[h]} {res.teams&&res.teams[h]? `• ${res.teams[h].label}` : ""}</div><div className="text- text-white/60">{currentFormat.name}</div></div>
-                      <div className="flex gap-2"><button onClick={()=>setActiveHole(Math.max(0,h-1))} className="w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white font-black">‹</button><button onClick={()=>setActiveHole(Math.min(17,h+1))} className="w-10 h-10 rounded-full bg-white text-black font-black">›</button></div>
+                  <div className="rounded- bg-[#121828] border border-white/10 overflow-hidden">
+                    <div className="p-4 flex justify-between items-center">
+                      <div><div className="font-bold text- text-white/90">Hole {h+1} • Par {par} • SI {course?.si[h]} {res.teams&&res.teams[h]? `• ${res.teams[h].label}` : ""}</div><div className="text- text-white/40">{currentFormat.name}</div></div>
+                      <div className="flex gap-1.5"><button onClick={()=>setActiveHole(Math.max(0,h-1))} className="w-9 h-9 rounded-full bg-white/10 text-white">‹</button><button onClick={()=>setActiveHole(Math.min(17,h+1))} className="w-9 h-9 rounded-full bg-white text-black">›</button></div>
                     </div>
-                    <div className="p-3 space-y-3">
+                    <div className="p-2.5 space-y-2.5">
                       {players.map(p=>{
                         const v=p.scores?.[h]??""; const hp=res.hp?.[p.name]?.[h]||0; const run=res.running?.[p.name]?.[h]??0; const isPar=v!==""&&v===par; const isBirdie=v!==""&&v===par-1; const isEagle=v!==""&&v<=par-2; const getsStroke=p.hcp>=course.si[h];
                         return (
-                          <div key={p.name} className={`rounded- border-2 p-3 ${isEagle?"bg-amber-500/15 border-amber-400/50":isBirdie?"bg-emerald-500/15 border-emerald-400/50":isPar?"bg-white/[0.05] border-white/20":"bg-black border-white/20"}`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text- font-black px-3 py-1 rounded-full bg-fuchsia-500 text-black">{p.name.toUpperCase()} • SCORING</span>
-                                <span className="text- text-white/50">H{p.hcp}{getsStroke?" *":""}</span>
-                              </div>
-                              <span className={`text- px-2 py-1 rounded-full font-mono font-bold ${hp>0?"bg-fuchsia-400 text-black":hp<0?"bg-red-400 text-black":"bg-white/10 text-white/70"}`}>{hp>0?`+${hp.toFixed(1)}`:`${hp.toFixed(1)}`} • {run>0?`+${run.toFixed(1)}`:run.toFixed(1)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black">{p.name[0]}</div><div className="text- text-white/60">HOLE {h+1}<br/><span className="font-black text-white text-">{p.name}</span></div></div>
-                              <div className="flex items-center gap-1.5"><button onClick={()=>{ const curr=parseInt(players.find(pl=>pl.name===p.name).scores[h])||par; upd(p.name,h,Math.max(1,curr-1)); }} className="w-12 h-12 rounded-full border bg-white/10 border-white/30 text-white text- font-black">-</button><div className="w-14 h-12 rounded-xl border-2 flex items-center justify-center font-black text- bg-black border-white/30 text-white">{v===""?"-":v}</div><button onClick={()=>{ const curr=parseInt(players.find(pl=>pl.name===p.name).scores[h])||par; upd(p.name,h,Math.min(12,curr+1)); }} className="w-12 h-12 rounded-full border bg-white text-black border-white text- font-black">+</button></div>
-                            </div>
+                          <div key={p.name} className={`rounded-xl border p-3 flex items-center justify-between ${isEagle?"bg-amber-500/10 border-amber-400/20":isBirdie?"bg-emerald-500/10 border-emerald-400/20":isPar?"bg-white/[0.03] border-white/10":"bg-black/30 border-white/5"}`}>
+                            <div><div className="flex items-center gap-2"><span className="text- font-bold text-white/80">{p.name}</span><span className="text- text-white/30">H{p.hcp}{getsStroke?" +1":""}</span><span className={`text- px-2 py-0.5 rounded-full font-mono ${hp>0?"bg-white text-black":hp<0?"bg-white/20 text-white/60":"bg-white/5 text-white/30"}`}>{hp>0?`+${hp.toFixed(1)}`:`${hp.toFixed(1)}`}</span></div><div className="text- text-white/20 mt-1 font-mono">TOTAL {run>0?`+${run.toFixed(1)}`:run.toFixed(1)} • HOLE {h+1}</div></div>
+                            <div className="flex items-center gap-1.5"><button onClick={()=>{ const curr=parseInt(players.find(pl=>pl.name===p.name).scores[h])||par; upd(p.name,h,Math.max(1,curr-1)); }} className="w-11 h-11 rounded-full bg-white/10 text-white">-</button><div className="w-12 h-11 rounded-lg border border-white/10 flex items-center justify-center font-bold text- bg-black text-white/90">{v===""?"-":v}</div><button onClick={()=>{ const curr=parseInt(players.find(pl=>pl.name===p.name).scores[h])||par; upd(p.name,h,Math.min(12,curr+1)); }} className="w-11 h-11 rounded-full bg-white text-black">+</button></div>
                           </div>
                         );
                       })}
@@ -304,62 +300,45 @@ export default function App(){
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              <button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null,settings:{...settings},title:appTitle, format:settings.gameFormat, teams: res.teams||{}}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveHole(0); setActiveTab("leaderboard"); }} className="flex-1 md:flex-none px-7 py-4 rounded-full font-black text- bg-fuchsia-500 text-white">End Round → Save</button>
-              <button onClick={()=>{ setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveHole(0); }} className="px-6 py-4 rounded-full font-black text- bg-white text-black border-2 border-black">Clear Scores</button>
+              <button onClick={async()=>{ const playersObj={}; players.forEach(p=>playersObj[p.name]=p.scores); const rd={id:Date.now(),dateStr:new Date().toLocaleString(),course:{name:course.name,short:course.short,pars:course.pars,si:course.si},scores:playersObj,players:players.map(p=>({name:p.name,hcp:p.hcp})),totals:{...res.totals},gross:{...res.gross},tieBreak:res.tieBreak||null,settings:{...settings},title:appTitle, format:settings.gameFormat, teams: res.teams||{}}; const nr=[rd,...rounds]; setRounds(nr); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:nr})}); }catch{} setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveHole(0); setActiveTab("leaderboard"); }} className="flex-1 md:flex-none px-6 py-3.5 rounded-full font-bold text- bg-white text-black">End Round → Save</button>
+              <button onClick={()=>{ setPlayers(prev=>prev.map(p=>({...p,scores:Array(18).fill("")}))); setActiveHole(0); }} className="px-5 py-3.5 rounded-full font-bold text- bg-white/10 text-white border border-white/10">Clear</button>
             </div>
           </>
         )}
 
-        {activeTab==="live" && res.error && (
-          <div className="py-20 text-center">
-            <div className="text-">⛳</div>
-            <div className="mt-4 font-black text- text-white">{res.error}</div>
-            <button onClick={()=>setActiveTab("players")} className="mt-6 px-8 py-4 rounded-full bg-white text-black font-black border-2 border-black">Go to Players — Add {currentFormat.minPlayers - players.length}</button>
-          </div>
-        )}
-
         {activeTab==="players" && (
-          <div className="rounded- bg-[#121828] border border-white/20 p-4 md:p-6 space-y-6">
+          <div className="rounded- bg-[#121828] border border-white/10 p-4 md:p-6 space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-3">
-              <div><div className="font-black text- text-white">Players • {players.length}/4 • {currentFormat.name} needs {currentFormat.minPlayers}</div></div>
-              <button onClick={resetPlayers} className="px-5 h-10 rounded-full bg-white text-black font-black text-xs border-2 border-black">Reset</button>
+              <div><div className="font-bold text- text-white/90">Players • {players.length}/4 • {currentFormat.name} needs {currentFormat.minPlayers}</div></div>
+              <button onClick={resetPlayers} className="px-4 h-9 rounded-full bg-white/10 text-white font-bold text-xs border border-white/10">Reset</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {players.map((p,idx)=>{
                 const g=res.gross?.[p.name]||0; const pts=res.totals?.[p.name]||0;
                 return (
-                  <div key={p.name} className="rounded- bg-black border border-white/20 p-4">
+                  <div key={p.name} className="rounded- bg-black/30 border border-white/10 p-4">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-fuchsia-500 text-black flex items-center justify-center font-black">{idx+1}</div><input value={p.name} onChange={e=>updatePlayerName(p.name,e.target.value)} className="bg-transparent border-b-2 border-white/30 focus:border-fuchsia-400 outline-none font-bold text- w- pb-1 text-white" /></div>
-                      <button onClick={()=>removePlayer(p.name)} className="w-10 h-10 rounded-full bg-red-500/20 border border-red-400/30 text-white font-black">✕</button>
+                      <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-white/10 text-white/60 flex items-center justify-center font-bold text-">{idx+1}</div><input value={p.name} onChange={e=>updatePlayerName(p.name,e.target.value)} className="bg-transparent border-b border-white/10 focus:border-white/30 outline-none font-bold text- w- pb-1 text-white/90" /></div>
+                      <button onClick={()=>removePlayer(p.name)} className="w-8 h-8 rounded-full bg-white/5 text-white/40">✕</button>
                     </div>
-                    <div className="mt-5">
-                      <div className="text- text-white/60 tracking-widest font-black mb-2">HANDICAP — {p.hcp}</div>
-                      <div className="flex items-center gap-3">
-                        <button onClick={()=>updateHcp(p.name,-1)} className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white font-black text-">-</button>
-                        <div className="flex-1 h-14 rounded-xl bg-[#1A1F2E] border-2 border-fuchsia-400/30 flex items-center justify-center font-black text- text-white">{p.hcp}</div>
-                        <button onClick={()=>updateHcp(p.name,1)} className="w-14 h-14 rounded-full bg-white text-black font-black text- border-2 border-white">+</button>
-                      </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <button onClick={()=>updateHcp(p.name,-1)} className="w-12 h-12 rounded-full bg-white/5 border border-white/10 text-white">-</button>
+                      <div className="flex-1 h-12 rounded-xl bg-[#1A1F2E] border border-white/10 flex flex-col items-center justify-center"><div className="text- text-white/30">HCP</div><div className="font-bold text- text-white/90">{p.hcp}</div></div>
+                      <button onClick={()=>updateHcp(p.name,1)} className="w-12 h-12 rounded-full bg-white text-black font-bold">+</button>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-white/[0.06] border border-white/10 p-2.5 text-center"><div className="text- text-white/50 tracking-widest">GROSS</div><div className="text- font-black text-white mt-1">{g}</div></div>
-                      <div className={`rounded-xl border p-2.5 text-center ${pts>0?"bg-fuchsia-500 border-fuchsia-400":"bg-white/[0.06] border-white/10"}`}><div className="text- tracking-widest text-white/50">POINTS</div><div className="text- font-black text-white mt-1">{pts>0?`+${pts.toFixed(1)}`:`${pts.toFixed(1)}`}</div></div>
-                    </div>
+                    <div className="mt-3 flex gap-2 text-"><div className="flex-1 rounded-lg bg-white/5 p-2 text-center text-white/50">GROSS <span className="text-white/90 font-bold ml-1">{g}</span></div><div className="flex-1 rounded-lg bg-white/5 p-2 text-center text-white/50">PTS <span className="text-white/90 font-bold ml-1">{pts.toFixed(1)}</span></div></div>
                   </div>
                 );
               })}
               {players.length<4? (
-                <div className="rounded- border-2 border-dashed border-fuchsia-400/60 bg-fuchsia-500/[0.12] p-5 flex flex-col justify-center">
-                  <div className="font-black text- text-white mb-1">+ Add Player</div>
-                  <div className="space-y-3">
-                    <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addPlayer()} placeholder="Player name" className="w-full h-12 rounded-xl bg-white text-black border-2 border-black px-4 text- font-bold placeholder:text-black/40" autoFocus />
-                    <div className="flex items-center gap-2">
-                      <span className="text- font-black text-white/60 w-">HCP</span>
-                      <button onClick={()=>setNewHcp(v=>Math.max(0,v-1))} className="w-11 h-11 rounded-full bg-black text-white border-2 border-white font-black text-">-</button>
-                      <div className="flex-1 h-11 rounded-xl bg-white text-black border-2 border-black flex items-center justify-center font-black text-">{newHcp}</div>
-                      <button onClick={()=>setNewHcp(v=>Math.min(36,v+1))} className="w-11 h-11 rounded-full bg-white text-black border-2 border-black font-black text-">+</button>
-                    </div>
-                    <button onClick={addPlayer} className="w-full h-12 rounded-full bg-fuchsia-500 text-white font-black text-">+ Add Player</button>
+                <div className="rounded- border border-dashed border-white/20 bg-white/[0.02] p-5">
+                  <div className="font-bold text- text-white/70 mb-3">+ Add Player {players.length < currentFormat.minPlayers? `— Need ${currentFormat.minPlayers - players.length} more` : ""}</div>
+                  <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addPlayer()} placeholder="Player name" className="w-full h-11 rounded-xl bg-white text-black px-4 text- font-bold placeholder:text-black/30" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <button onClick={()=>setNewHcp(v=>Math.max(0,v-1))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white">-</button>
+                    <div className="flex-1 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-white/70">HCP {newHcp}</div>
+                    <button onClick={()=>setNewHcp(v=>Math.min(36,v+1))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white">+</button>
+                    <button onClick={addPlayer} className="px-5 h-10 rounded-full bg-white text-black font-bold text-">Add</button>
                   </div>
                 </div>
               ) : null}
@@ -368,51 +347,67 @@ export default function App(){
         )}
 
         {activeTab==="setup" && (
-          <div className="rounded- bg-white border-2 border-black p-5 space-y-6">
-            <div className="font-black text- text-black">Setup</div>
+          <div className="rounded- bg-white border border-black/10 p-5 space-y-6">
+            <div className="font-bold text- text-black/80">Setup</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div>
-                  <div className="text- font-black text-black mb-2">App Title</div>
-                  <div className="flex gap-2"><input value={appTitle} onChange={e=>setAppTitle(e.target.value)} className="flex-1 h-11 rounded-xl bg-white text-black border-2 border-black px-4 text- font-black" /><button onClick={()=>setAppTitle(DEFAULT_TITLE)} className="px-5 h-11 rounded-full bg-black text-white font-black text-xs">Reset</button></div>
-                </div>
-                <div>
-                  <div className="text- font-black text-black mb-2">Gamble Format</div>
-                  <select value={settings.gameFormat} onChange={e=>setSettings(s=>({...s, gameFormat:e.target.value}))} className="w-full h-12 rounded-xl bg-white text-black border-2 border-black px-4 text- font-black">
-                    {GAMBLE_FORMATS.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div className="text- font-black text-black mb-2">$ Per Point</div>
-                  <div className="flex items-center gap-2"><button onClick={()=>updateSetting("dollarPerPoint",-1)} className="w-12 h-12 rounded-full bg-black text-white font-black text- border-2 border-black">-</button><div className="flex-1 h-12 rounded-xl bg-white text-black border-2 border-black flex items-center justify-center font-black text-">${settings.dollarPerPoint}</div><button onClick={()=>updateSetting("dollarPerPoint",1)} className="w-12 h-12 rounded-full bg-fuchsia-500 text-white font-black text- border-2 border-black">+</button></div>
-                </div>
+                <div><div className="text- font-bold text-black/50 mb-2">App Title</div><div className="flex gap-2"><input value={appTitle} onChange={e=>setAppTitle(e.target.value)} className="flex-1 h-11 rounded-xl bg-white text-black border border-black/20 px-4 text- font-bold" /><button onClick={()=>setAppTitle(DEFAULT_TITLE)} className="px-4 h-11 rounded-full bg-black text-white font-bold text-xs">Reset</button></div></div>
+                <div><div className="text- font-bold text-black/50 mb-2">Gamble Format — {players.length}/{currentFormat.minPlayers}</div><select value={settings.gameFormat} onChange={e=>setSettings(s=>({...s, gameFormat:e.target.value}))} className={`w-full h-11 rounded-xl border px-4 text- font-bold ${players.length < currentFormat.minPlayers? "bg-red-50 text-black border-red-300" : "bg-white text-black border-black/20"}`}>{GAMBLE_FORMATS.map(f=><option key={f.id} value={f.id}>{f.name} {players.length < f.minPlayers? `— NEED ${f.minPlayers}` : ""}</option>)}</select><div className="mt-2 p-2.5 rounded-xl bg-black text-white/80 text-"><span className="font-bold text-white">{currentFormat.name}</span> — {GAMBLE_FORMATS_DESC[currentFormat.id]}</div></div>
+                <div><div className="text- font-bold text-black/50 mb-2">$ Per Point</div><div className="flex items-center gap-2"><button onClick={()=>updateSetting("dollarPerPoint",-1)} className="w-11 h-11 rounded-full bg-black text-white font-bold">-</button><div className="flex-1 h-11 rounded-xl bg-white border border-black/20 flex items-center justify-center font-bold text-black">${settings.dollarPerPoint}</div><button onClick={()=>updateSetting("dollarPerPoint",1)} className="w-11 h-11 rounded-full bg-white text-black border border-black/20 font-bold">+</button></div></div>
               </div>
               <div className="space-y-3">
-                <div className="text- font-black text-black">Skins Tuning</div>
+                <div className="text- font-bold text-black/50">Skins Tuning — Base / Max / Birdie / Eagle / Carry</div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><div className="text- text-black/60 mb-1">Base Points</div><div className="flex gap-1"><button onClick={()=>updateSetting("baseHolePoints",-1)} className="flex-1 h-9 rounded-full bg-black text-white font-black">-</button><div className="flex-1 h-9 rounded-xl bg-white border-2 border-black flex items-center justify-center font-black text-black">{settings.baseHolePoints}</div><button onClick={()=>updateSetting("baseHolePoints",1)} className="flex-1 h-9 rounded-full bg-white text-black border-2 border-black font-black">+</button></div></div>
-                  <div><div className="text- text-black/60 mb-1">Max Per Loser</div><div className="flex gap-1"><button onClick={()=>updateSetting("maxPerLoser",-1)} className="flex-1 h-9 rounded-full bg-black text-white font-black">-</button><div className="flex-1 h-9 rounded-xl bg-white border-2 border-black flex items-center justify-center font-black text-black">{settings.maxPerLoser}</div><button onClick={()=>updateSetting("maxPerLoser",1)} className="flex-1 h-9 rounded-full bg-white text-black border-2 border-black font-black">+</button></div></div>
-                  <div><div className="text- text-black/60 mb-1">Birdie Pts</div><div className="flex gap-1"><button onClick={()=>updateSetting("birdiePoints",-1)} className="flex-1 h-9 rounded-full bg-black text-white font-black">-</button><div className="flex-1 h-9 rounded-xl bg-white border-2 border-black flex items-center justify-center font-black text-black">{settings.birdiePoints}</div><button onClick={()=>updateSetting("birdiePoints",1)} className="flex-1 h-9 rounded-full bg-white text-black border-2 border-black font-black">+</button></div></div>
-                  <div><div className="text- text-black/60 mb-1">Eagle Pts</div><div className="flex gap-1"><button onClick={()=>updateSetting("eaglePoints",-1)} className="flex-1 h-9 rounded-full bg-black text-white font-black">-</button><div className="flex-1 h-9 rounded-xl bg-white border-2 border-black flex items-center justify-center font-black text-black">{settings.eaglePoints}</div><button onClick={()=>updateSetting("eaglePoints",1)} className="flex-1 h-9 rounded-full bg-white text-black border-2 border-black font-black">+</button></div></div>
+                  {[
+                    ["baseHolePoints","Base"],["maxPerLoser","Max/Loser"],["birdiePoints","Birdie"],["eaglePoints","Eagle"],["carryIncrement","Carry +"],["maxCarries","Max Carries"],["carryCap","Carry Cap"]
+                  ].map(([k,label])=>(
+                    <div key={k}><div className="text- text-black/40 mb-1">{label}</div><div className="flex gap-1"><button onClick={()=>updateSetting(k,-1)} className="flex-1 h-8 rounded-full bg-black text-white text-">-</button><div className="flex-1 h-8 rounded-lg bg-white border border-black/20 flex items-center justify-center font-bold text- text-black">{settings[k]}</div><button onClick={()=>updateSetting(k,1)} className="flex-1 h-8 rounded-full bg-white border border-black/20 text-">+</button></div></div>
+                  ))}
                 </div>
+                <div className="p-3 rounded-xl bg-black text-white/60 text-"><div className="font-bold text-white/90 mb-2">All Formats — Requirements</div>{GAMBLE_FORMATS.map(f=>{ const ok=players.length>=f.minPlayers; return <div key={f.id} className={`py-1.5 flex justify-between border-b border-white/5 last:border-0 ${f.id===settings.gameFormat?"text-white":""}`}><span>{f.name}</span><span className={ok?"text-white/40":"text-red-300"}>{f.minPlayers}P {ok?"✓":`NEED ${f.minPlayers-players.length}`}</span></div>; })}</div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab==="leaderboard" && (
-          <div className="rounded- bg-[#121828] border border-white/20 p-4">
-            <div className="font-black text-white">Board • {currentFormat.name} • {rounds.length} rounds</div>
+          <div className="rounded- bg-[#121828] border border-white/10 p-4 md:p-6 space-y-6">
+            <div className="flex justify-between items-center flex-wrap gap-3"><div><div className="font-bold text- text-white/90">Board • {currentFormat.name}</div><div className="text- text-white/40 mt-1">{rounds.length} rounds</div></div><select value={sortKey} onChange={e=>setSortKey(e.target.value)} className="h-9 rounded-full bg-white text-black border border-black/20 px-4 text- font-bold"><option value="points">Points</option><option value="avg">Avg</option><option value="pars">Pars</option><option value="birdies">Birdies</option><option value="eagles">Eagles</option><option value="gross">Low Gross</option><option value="bogeys">Fewest Bogeys</option><option value="doubles">Fewest Doubles</option></select></div>
+            {res.error? <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-white/60 text-">{res.error}</div> :
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {players.map(p=>{
+                  const st=getStats(p.scores,course?.pars||[]); const pts=res.totals?.[p.name]||0;
+                  return <div key={p.name} className="rounded-xl border border-white/10 bg-black/20 p-3 flex justify-between items-center"><span className="font-bold text- text-white/80">{p.name} H{p.hcp} • {res.gross?.[p.name]||0}</span><span className="text- font-mono text-white/60">{pts.toFixed(1)} pts ${ (pts*settings.dollarPerPoint).toFixed(0)} • {st.parsC}P {st.birdies}B</span></div>;
+                })}
+              </div>
+            }
+            <div><div className="font-bold text- tracking-widest text-white/30 mb-3">ALL-TIME • {sortKey}</div>{leaderboard.length===0? <div className="py-12 text-center text-white/20">No rounds yet</div> : <div className="grid gap-2">{leaderboard.map((pl,i)=><div key={pl.name} className="rounded-xl border border-white/5 bg-black/20 p-3 flex justify-between items-center"><div className="flex items-center gap-3"><span className="text- w-6 text-white/30">{i+1}</span><div><div className="font-bold text- text-white/80">{pl.name}</div><div className="text- text-white/30">{pl.rounds} rnds • {pl.pars}P {pl.birdies}B {pl.eagles}E</div></div></div><span className="text- font-mono text-white/60">{pl.points.toFixed(1)} $:{(pl.points*settings.dollarPerPoint).toFixed(0)}</span></div>)}</div>}</div>
           </div>
         )}
+
         {activeTab==="courses" && (
-          <div className="rounded- bg-[#121828] border border-white/20 p-4">
-            <div className="font-black text-white">Courses • {allCourses.length}</div>
+          <div className="rounded- bg-[#121828] border border-white/10 p-4 space-y-4">
+            <div className="flex justify-between items-center"><div className="font-bold text-white/80">Courses • {allCourses.length}</div><button onClick={openNewCourse} className="px-4 h-9 rounded-full bg-white text-black font-bold text-">+ New Course</button></div>
+            <select value={cIdx} onChange={e=>setCIdx(parseInt(e.target.value))} className="w-full h-11 rounded-xl bg-white text-black border border-black/20 px-4 text- font-bold">{allCourses.map((c,idx)=><option key={idx} value={idx}>{c.short} - {c.name} Par {c.pars.reduce((a,b)=>a+b,0)} {c.isCustom?"(Custom)":""} {c.isEdited?"(Edited)":""}</option>)}</select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{allCourses.map((c,idx)=><div key={idx} className={`rounded-xl border p-3 flex justify-between items-center ${idx===cIdx?"bg-white text-black border-white":"bg-black/20 text-white/60 border-white/5"}`}><div><div className="font-bold text-">{c.name}</div><div className="text- opacity-60">{c.short} • {c.area} • Par {c.pars.reduce((a,b)=>a+b,0)}</div></div><div className="flex gap-1.5"><button onClick={()=>{ setCIdx(idx); setActiveTab("live"); }} className={`px-3 h-8 rounded-full text- font-bold ${idx===cIdx?"bg-black text-white":"bg-white/10 text-white"}`}>Use</button><button onClick={()=>openEditCourse(idx)} className="px-3 h-8 rounded-full bg-white/10 text-white text- font-bold">Edit</button><button onClick={()=>deleteCourse(idx)} className="px-3 h-8 rounded-full bg-white/5 text-white/40 text-">{c.isCustom?"Del":c.isEdited?"Reset":""}</button></div></div>)}</div>
+            {showEdit&&<div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"><div className="w-full max-w- rounded- bg-white p-5 space-y-4"><div className="font-bold text-black">Edit Course</div><input value={editForm.name} onChange={e=>setEditForm(s=>({...s,name:e.target.value}))} placeholder="Name" className="w-full h-11 rounded-xl border border-black/20 px-4 text-black" /><input value={editForm.short} onChange={e=>setEditForm(s=>({...s,short:e.target.value}))} placeholder="Short" className="w-full h-11 rounded-xl border border-black/20 px-4 text-black" /><input value={editForm.area} onChange={e=>setEditForm(s=>({...s,area:e.target.value}))} placeholder="Area" className="w-full h-11 rounded-xl border border-black/20 px-4 text-black" /><textarea value={editForm.parsStr} onChange={e=>setEditForm(s=>({...s,parsStr:e.target.value}))} placeholder="Pars 18 comma" className="w-full h-20 rounded-xl border border-black/20 p-3 text-black text-" /><textarea value={editForm.siStr} onChange={e=>setEditForm(s=>({...s,siStr:e.target.value}))} placeholder="SI 18 comma" className="w-full h-20 rounded-xl border border-black/20 p-3 text-black text-" /><div className="flex gap-2"><button onClick={saveCourse} className="flex-1 h-11 rounded-full bg-black text-white font-bold">Save</button><button onClick={()=>setShowEdit(false)} className="flex-1 h-11 rounded-full bg-white border border-black/20 text-black font-bold">Cancel</button></div></div></div>}
           </div>
         )}
+
         {activeTab==="history" && (
-          <div className="rounded- bg-[#121828] border border-white/20 p-4">
-            <div className="font-black text-white">History • {rounds.length} rounds</div>
+          <div className="rounded- bg-[#121828] border border-white/10 p-4">
+            <div className="font-bold text- mb-4 text-white/80">History • {rounds.length} rounds</div>
+            {rounds.length===0? <div className="py-16 text-center text-white/20">No rounds yet</div> :
+              rounds.map(r=>{
+                const short=r.course?.short||r.course?.name; const totals=r.totals||{}; const gross=r.gross||{}; const scoresObj=r.scores||{}; const orderNames=r.players?.map(p=>p.name)||Object.keys(scoresObj); const coursePars=r.course?.pars||BASE_COURSES.find(c=>c.short===short)?.pars||Array(18).fill(4);
+                return (
+                  <div key={r.id} className="p-4 rounded-xl bg-black/20 border border-white/5 mb-3">
+                    <div className="flex justify-between items-start gap-3"><div className="text- font-mono text-white/60"><div className="font-bold text-white/80 text-">{r.dateStr} • {short} • {r.format||r.settings?.gameFormat} • ${r.settings?.dollarPerPoint||1}/pt</div><div className="mt-1 text- text-white/30">{r.course?.name||""} • Par {coursePars.reduce((a,b)=>a+b,0)}</div></div><button onClick={async()=>{ if(!confirm(`Delete ${r.dateStr}?`)) return; const u=rounds.filter(x=>x.id!==r.id); setRounds(u); try{ await fetch("/api/standings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rounds:u})}); }catch{} }} className="shrink-0 px-3 py-1.5 rounded-full bg-white/5 text- text-white/40">Delete</button></div>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">{orderNames.map(name=>{ const arr=scoresObj[name]||[]; const st=getStats(arr, coursePars); const pts=totals[name]??0; const g=gross[name]??0; return <div key={name} className="rounded-lg bg-[#0F1423] border border-white/5 p-2.5 flex justify-between items-center"><span className="font-bold text- text-white/70">{name} • {g} / {pts.toFixed(1)}</span><span className="text- text-white/30">{st.parsC}P {st.birdies}B {st.eagles}E</span></div>; })}</div>
+                  </div>
+                );
+              })
+            }
           </div>
         )}
       </div>
