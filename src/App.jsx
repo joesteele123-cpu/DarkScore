@@ -150,7 +150,7 @@ export default function App(){
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-black text- md:text- text-white tracking-tight">{appTitle} • No Photos • Always Editable</div>
+            <div className="font-black text- md:text- text-white tracking-tight">{appTitle} • </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select value={cIdx} onChange={e=>setCIdx(parseInt(e.target.value))} className="h-9 rounded-full bg-white text-black border-2 border-white px-3 text- font-black max-w-">
                 {allCourses.map((c,idx)=><option key={(c.short||c.name)+idx} value={idx}>{c.short} Par {c.pars.reduce((a,b)=>a+b,0)}</option>)}
